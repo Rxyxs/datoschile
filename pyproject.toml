@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datoschile"
+dynamic = ["version"]
+description = "Datos públicos de Chile, limpios y en un DataFrame: UF, dólar, cobre, valores cuota de las AFP y morosidad bancaria."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Pablo Reyes" }]
+requires-python = ">=3.10"
+dependencies = ["pandas>=1.5", "requests>=2.28", "openpyxl>=3.1"]
+keywords = ["chile", "datos abiertos", "uf", "afp", "pensiones", "cmf", "banco central", "open data"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Natural Language :: Spanish",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/Rxyxs/datoschile"
+Issues = "https://github.com/Rxyxs/datoschile/issues"
+
+[project.scripts]
+datoschile = "datoschile.__main__:main"
+
+[tool.hatch.version]
+path = "src/datoschile/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/datoschile"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["red: pruebas que descargan datos reales (corren con -m red)"]
+addopts = "-m 'not red'"
