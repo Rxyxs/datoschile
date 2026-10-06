@@ -1,10 +1,10 @@
 """Línea de comandos: baja una serie y la guarda en CSV.
 
-    python -m datoschile uf --desde 2020 --salida uf.csv
-    python -m datoschile serie libra_cobre --desde 2024
-    python -m datoschile valor-cuota --fondos AE --desde 2024
-    python -m datoschile indice --fondos A --desde 2008 --real
-    python -m datoschile morosidad --desde 2020-01 --solo-sistema
+    python -m cordillera uf --desde 2020 --salida uf.csv
+    python -m cordillera serie libra_cobre --desde 2024
+    python -m cordillera valor-cuota --fondos AE --desde 2024
+    python -m cordillera indice --fondos A --desde 2008 --real
+    python -m cordillera morosidad --desde 2020-01 --solo-sistema
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def _desde_hasta(v: str | None):
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="datoschile", description="Datos públicos de Chile a CSV.")
+    p = argparse.ArgumentParser(prog="cordillera", description="Datos públicos de Chile a CSV.")
     sub = p.add_subparsers(dest="comando", required=True)
 
     def comun(sp):

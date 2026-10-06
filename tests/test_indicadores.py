@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import pytest
 
-from datoschile import indicadores
+from cordillera import indicadores
 
 
 def _uf(pares):

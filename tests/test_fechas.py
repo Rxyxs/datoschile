@@ -1,6 +1,6 @@
 import pandas as pd
 
-from datoschile._fechas import rango
+from cordillera._fechas import rango
 
 
 def test_rango_entiende_anio_mes_y_fecha():

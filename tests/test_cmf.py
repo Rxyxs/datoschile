@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from datoschile import cmf
+from cordillera import cmf
 
 HTML = """
 <a href="articles-113888_recurso_1.xlsx?ts=1" class="card-img" aria-label="Descargar Agosto 2026 (xlsx, 30 KB)">

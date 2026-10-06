@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from datoschile import pensiones
+from cordillera import pensiones
 
 # Dos encabezados: a mitad del archivo entra una AFP nueva (como Modelo en 2010) y las
 # columnas se corren. Un parser con un solo encabezado asignaría mal los valores.

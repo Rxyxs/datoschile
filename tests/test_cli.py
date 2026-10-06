@@ -1,6 +1,6 @@
 import pandas as pd
 
-from datoschile import __main__ as cli
+from cordillera import __main__ as cli
 
 
 def test_cli_escribe_csv(tmp_path, monkeypatch):
