@@ -1,4 +1,4 @@
-"""Genera docs/ejemplo.png: tres series bajadas con cordillera, cada una en una línea de código.
+"""Genera docs/ejemplo.png: tres series bajadas con datoschile, cada una en una línea de código.
 
     python ejemplos/grafico_readme.py
 """
@@ -6,11 +6,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-import cordillera as co
+import datoschile as dc
 
-indice = co.pensiones.indice(fondos="AE", desde=2008, real=True)
-mora = co.cmf.morosidad(solo_sistema=True)
-cobre = co.indicadores.cobre(desde=2013)
+indice = dc.pensiones.indice(fondos="AE", desde=2008, real=True)
+mora = dc.cmf.morosidad(solo_sistema=True)
+cobre = dc.indicadores.cobre(desde=2013)
 
 TINTA, GRIS, A, E = "#1f2328", "#8c959f", "#1a7f37", "#0969da"
 plt.rcParams.update({"font.size": 10, "axes.spines.top": False, "axes.spines.right": False,

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cordillera"
+name = "datoschile"
 dynamic = ["version"]
 description = "Datos públicos de Chile, limpios y en un DataFrame: UF, dólar, cobre, valores cuota de las AFP y morosidad bancaria."
 readme = "README.md"
@@ -25,17 +25,17 @@ classifiers = [
 dev = ["pytest>=7"]
 
 [project.urls]
-Homepage = "https://github.com/Rxyxs/cordillera"
-Issues = "https://github.com/Rxyxs/cordillera/issues"
+Homepage = "https://github.com/Rxyxs/datoschile"
+Issues = "https://github.com/Rxyxs/datoschile/issues"
 
 [project.scripts]
-cordillera = "cordillera.__main__:main"
+datoschile = "datoschile.__main__:main"
 
 [tool.hatch.version]
-path = "src/cordillera/__init__.py"
+path = "src/datoschile/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cordillera"]
+packages = ["src/datoschile"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -2,7 +2,7 @@
 
 Un año que ya terminó no cambia, así que se guarda en disco y no se vuelve a pedir.
 El año en curso (y los últimos meses de la CMF) siempre se descargan de nuevo.
-La carpeta de caché es ``~/.cache/cordillera`` o la que indique ``CORDILLERA_CACHE``.
+La carpeta de caché es ``~/.cache/datoschile`` o la que indique ``DATOSCHILE_CACHE``.
 """
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ import requests
 
 from . import __version__
 
-USER_AGENT = f"cordillera/{__version__} (+https://github.com/Rxyxs/cordillera)"
+USER_AGENT = f"datoschile/{__version__} (+https://github.com/Rxyxs/datoschile)"
 _session: requests.Session | None = None
 
 
 def carpeta_cache() -> Path:
     """Carpeta donde se guardan las descargas de periodos cerrados."""
-    base = os.environ.get("CORDILLERA_CACHE")
-    return Path(base) if base else Path.home() / ".cache" / "cordillera"
+    base = os.environ.get("DATOSCHILE_CACHE")
+    return Path(base) if base else Path.home() / ".cache" / "datoschile"
 
 
 def _sesion() -> requests.Session:

@@ -4,7 +4,7 @@ Fuente: la página de estadísticas de la Comisión para el Mercado Financiero
 (https://www.cmfchile.cl/portal/estadisticas/626/w4-propertyvalue-28914.html), que
 publica un Excel por mes. Sin clave ni formulario.
 
-    >>> from cordillera import cmf
+    >>> from datoschile import cmf
     >>> cmf.morosidad(desde="2020-01")              # una fila por mes y banco
     >>> cmf.morosidad(solo_sistema=True)            # solo el total del sistema bancario
 """

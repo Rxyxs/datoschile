@@ -3,7 +3,7 @@
 Fuente: el archivo que genera el botón "Genera archivo" de la Superintendencia de Pensiones
 (https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). Sin clave ni formulario.
 
-    >>> from cordillera import pensiones
+    >>> from datoschile import pensiones
     >>> pensiones.valor_cuota(fondos="AE", desde=2020)   # una fila por día, fondo y AFP
     >>> pensiones.indice(desde=2008, real=True)          # índice del fondo ponderado por patrimonio, en UF
 """
@@ -137,7 +137,7 @@ def indice(fondos="ABCDE", desde=None, hasta=None, real: bool = False, base: flo
            cache: bool = True) -> pd.DataFrame:
     """Índice del fondo (todas las AFP, ponderadas por patrimonio), igual a ``base`` el primer día pedido.
 
-    Con ``real=True`` se deflacta por la UF diaria limpia (:func:`cordillera.indicadores.uf`):
+    Con ``real=True`` se deflacta por la UF diaria limpia (:func:`datoschile.indicadores.uf`):
     el índice queda en poder adquisitivo constante, que es como se miden las pensiones.
     ``retorno`` es el retorno diario (real, si ``real=True``) respecto del día anterior.
     """

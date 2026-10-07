@@ -5,7 +5,7 @@ Fuente: `mindicador.cl <https://mindicador.cl>`_, una API abierta que replica se
 Banco Central de Chile, el INE y el SII. Es un agregador de terceros, no el publicador
 oficial, y trae errores reales que este módulo detecta (ver :func:`uf`).
 
-    >>> from cordillera import indicadores
+    >>> from datoschile import indicadores
     >>> indicadores.uf(desde=2020)                       # UF diaria, limpia
     >>> indicadores.serie("libra_cobre", desde=2024)     # cualquier serie disponible
 """

@@ -1,31 +1,31 @@
 🇨🇱 **Español** · 🇺🇸 [English](README.en.md)
 
-# cordillera
+# datoschile
 
-[![tests](https://github.com/Rxyxs/cordillera/actions/workflows/tests.yml/badge.svg)](https://github.com/Rxyxs/cordillera/actions/workflows/tests.yml)
-[![fuentes](https://github.com/Rxyxs/cordillera/actions/workflows/fuentes.yml/badge.svg)](https://github.com/Rxyxs/cordillera/actions/workflows/fuentes.yml)
+[![tests](https://github.com/Rxyxs/datoschile/actions/workflows/tests.yml/badge.svg)](https://github.com/Rxyxs/datoschile/actions/workflows/tests.yml)
+[![fuentes](https://github.com/Rxyxs/datoschile/actions/workflows/fuentes.yml/badge.svg)](https://github.com/Rxyxs/datoschile/actions/workflows/fuentes.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
 
 **Datos públicos de Chile, limpios y en un DataFrame, en una línea.** UF, dólar, cobre, IPC, TPM, IMACEC y desempleo; valores cuota y patrimonio de las AFP por fondo; y morosidad bancaria por banco desde la CMF.
 
 ```python
-import cordillera as co
+import datoschile as dc
 
-co.indicadores.uf(desde=2020)                         # UF diaria, corregida
-co.indicadores.cobre(desde=2024)                      # precio de la libra de cobre
-co.pensiones.valor_cuota(fondos="AE", desde=2020)     # por día, fondo y AFP
-co.pensiones.indice(fondos="A", desde=2008, real=True)  # índice del fondo en UF
-co.cmf.morosidad(desde="2020-01")                     # panel mensual por banco
+dc.indicadores.uf(desde=2020)                         # UF diaria, corregida
+dc.indicadores.cobre(desde=2024)                      # precio de la libra de cobre
+dc.pensiones.valor_cuota(fondos="AE", desde=2020)     # por día, fondo y AFP
+dc.pensiones.indice(fondos="A", desde=2008, real=True)  # índice del fondo en UF
+dc.cmf.morosidad(desde="2020-01")                     # panel mensual por banco
 ```
 
-![Fondos A y E en UF, morosidad bancaria y precio del cobre, bajados con cordillera](docs/ejemplo.png)
+![Fondos A y E en UF, morosidad bancaria y precio del cobre, bajados con datoschile](docs/ejemplo.png)
 
 ## Por qué existe
 
 Estas fuentes son públicas y no piden clave, pero ninguna se puede usar tal como viene. Cada problema de abajo apareció trabajando con datos reales en otros proyectos ([pensiones](https://github.com/Rxyxs/chile-pension-fund-switching-cost), [morosidad bancaria](https://github.com/Rxyxs/chile-banking-delinquency-cmf)), y la librería lo resuelve una vez para que nadie más tenga que encontrarlo:
 
-| Fuente | Problema real | Qué hace cordillera |
+| Fuente | Problema real | Qué hace datoschile |
 |---|---|---|
 | UF (mindicador.cl) | El 29 y 30 de diciembre de 2014 la "UF" vale **608,15 y 607,38**: es el dólar filtrado en la serie. Un índice deflactado salta ×40 y vuelve. | Descarta todo día que se mueva más de 1% respecto del último valor válido (la UF nunca lo hace) y lo rellena. |
 | UF (mindicador.cl) | El 11-07-2015 aparece cinco veces; faltan el 12-12-2015 y el 31-12-2015. | Colapsa copias idénticas, **falla si dos copias no coinciden**, e interpola geométricamente, que es como se calcula la UF. |
@@ -39,7 +39,7 @@ Todas las reglas de limpieza tienen un test que reproduce el problema original.
 ## Instalación
 
 ```bash
-pip install git+https://github.com/Rxyxs/cordillera
+pip install git+https://github.com/Rxyxs/datoschile
 ```
 
 Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
@@ -72,15 +72,15 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 ### Desde la terminal
 
 ```bash
-cordillera uf --desde 2020 -o uf.csv
-cordillera serie libra_cobre --desde 2024
-cordillera indice --fondos A --desde 2008 --real -o fondo_a_real.csv
-cordillera morosidad --desde 2020-01 --solo-sistema
+datoschile uf --desde 2020 -o uf.csv
+datoschile serie libra_cobre --desde 2024
+datoschile indice --fondos A --desde 2008 --real -o fondo_a_real.csv
+datoschile morosidad --desde 2020-01 --solo-sistema
 ```
 
 ## Caché
 
-Un año que ya terminó no cambia, así que se guarda en `~/.cache/cordillera` y no se vuelve a pedir; el año en curso (y los últimos tres meses de la CMF, que pueden corregirse) siempre se descarga de nuevo. La primera descarga de la UF completa toma cerca de 2 minutos porque mindicador es lento; después, los años cerrados salen del disco en centésimas de segundo y solo se vuelve a pedir el año en curso (unos segundos). Para usar otra carpeta: `CORDILLERA_CACHE=/ruta`. Para no usar caché: `cache=False` o `--sin-cache`.
+Un año que ya terminó no cambia, así que se guarda en `~/.cache/datoschile` y no se vuelve a pedir; el año en curso (y los últimos tres meses de la CMF, que pueden corregirse) siempre se descarga de nuevo. La primera descarga de la UF completa toma cerca de 2 minutos porque mindicador es lento; después, los años cerrados salen del disco en centésimas de segundo y solo se vuelve a pedir el año en curso (unos segundos). Para usar otra carpeta: `DATOSCHILE_CACHE=/ruta`. Para no usar caché: `cache=False` o `--sin-cache`.
 
 ## Verificado contra las fuentes
 
