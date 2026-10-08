@@ -1,6 +1,6 @@
-🇨🇱 **Español** · 🇺🇸 [English](README.en.md)
+ **Español** · [English](README.en.md)
 
-# datoschile
+# Datos Chile
 
 [![tests](https://github.com/Rxyxs/datoschile/actions/workflows/tests.yml/badge.svg)](https://github.com/Rxyxs/datoschile/actions/workflows/tests.yml)
 [![fuentes](https://github.com/Rxyxs/datoschile/actions/workflows/fuentes.yml/badge.svg)](https://github.com/Rxyxs/datoschile/actions/workflows/fuentes.yml)
