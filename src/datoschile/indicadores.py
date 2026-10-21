@@ -49,9 +49,18 @@ def _validar_codigo(codigo: str) -> None:
         raise ValueError(f"Serie desconocida '{codigo}'. Disponibles: {', '.join(SERIES)}")
 
 
+#: Se marca cuando mindicador no respondió en esta sesión: las siguientes peticiones de UF y
+#: dólar van directo al SII en vez de esperar de nuevo los reintentos y el timeout por cada
+#: año (con mindicador caído, una serie desde 2010 tardaba más de media hora en caer al SII).
+_mindicador_caido = False
+
+
 def descargar_anio(codigo: str, anio: int, cache: bool = True) -> list[dict]:
     """Observaciones crudas de un año, tal como las entrega la API (sin limpiar)."""
+    global _mindicador_caido
     _validar_codigo(codigo)
+    if _mindicador_caido and codigo in sii.URLS:
+        return sii.descargar_anio(codigo, anio, cache=cache)
     try:
         contenido = _red.con_cache(
             f"mindicador/{codigo}/{anio}.json",
@@ -63,6 +72,7 @@ def descargar_anio(codigo: str, anio: int, cache: bool = True) -> list[dict]:
         # fuente oficial alternativa en el SII, con los mismos valores día a día.
         if codigo not in sii.URLS:
             raise
+        _mindicador_caido = True
         warnings.warn(f"mindicador no respondió ({e}); se usa el SII para {codigo} {anio}.", stacklevel=2)
         return sii.descargar_anio(codigo, anio, cache=cache)
     serie = json.loads(contenido).get("serie") or []
