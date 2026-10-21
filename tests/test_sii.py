@@ -65,6 +65,27 @@ def test_rechaza_series_que_el_sii_no_publica():
         sii.descargar_anio("libra_cobre", 2014)
 
 
+@pytest.fixture(autouse=True)
+def mindicador_disponible(monkeypatch):
+    monkeypatch.setattr(indicadores, "_mindicador_caido", False)
+
+
+def test_despues_de_una_caida_no_vuelve_a_esperar_a_mindicador(monkeypatch):
+    llamadas = []
+
+    def caido(*args, **kwargs):
+        llamadas.append(1)
+        raise ConnectionError("timeout")
+
+    monkeypatch.setattr(indicadores._red, "con_cache", caido)
+    monkeypatch.setattr(sii, "descargar_anio", lambda codigo, anio, cache=True: [])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for anio in range(2010, 2015):
+            indicadores.descargar_anio("uf", anio)
+    assert len(llamadas) == 1
+
+
 def test_usa_el_sii_cuando_mindicador_falla(monkeypatch):
     def caido(*args, **kwargs):
         raise ConnectionError("500 Server Error")
