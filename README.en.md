@@ -48,7 +48,9 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 
 ## What's inside
 
-**`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series.
+**`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series. If mindicador does not respond, the UF and the dollar are fetched from the SII instead (with a `warning`).
+
+**`sii`**: the UF and the observed dollar from the official yearly tables of the [SII](https://www.sii.cl/valores_y_fechas/), no key needed. They match mindicador on every day of 2014 and 2024, except 29 and 30 December 2014, where the SII has the correct UF (24,627.10) and mindicador the dollar.
 
 | Function | Returns |
 |---|---|
@@ -103,7 +105,7 @@ Over the full history, the library reproduces the figures of the projects it cam
 
 ## Sources and caveats
 
-- **mindicador.cl** is a third-party aggregator, not the official publisher. For regulatory use, check against the [Central Bank](https://si3.bcentral.cl/siete) or the [SII](https://www.sii.cl/valores_y_fechas/).
+- **mindicador.cl** is a third-party aggregator, not the official publisher, and it goes down: in October 2026 it returned 500 errors for several days. The UF and the dollar fall back to the SII automatically; the other series (copper, CPI, policy rate, IMACEC...) do not, and for regulatory use they should be checked against the [Central Bank](https://si3.bcentral.cl/siete).
 - **Pension regulator (Superintendencia de Pensiones)**: [unit values and assets](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). The series includes weekends with nearly flat values; for volatility models, keep business days only.
 - **CMF**: [delinquency statistics](https://www.cmfchile.cl/portal/estadisticas/626/w4-propertyvalue-28914.html).
 

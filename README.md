@@ -46,7 +46,9 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 
 ## Qué trae
 
-**`indicadores`**: cualquier serie de [mindicador.cl](https://mindicador.cl), que replica series del Banco Central, el INE y el SII.
+**`indicadores`**: cualquier serie de [mindicador.cl](https://mindicador.cl), que replica series del Banco Central, el INE y el SII. Si mindicador no responde, la UF y el dólar se piden al SII (avisando con un `warning`).
+
+**`sii`**: la UF y el dólar observado desde las tablas anuales oficiales del [SII](https://www.sii.cl/valores_y_fechas/), sin clave. Coinciden con mindicador en todos los días de 2014 y 2024, salvo el 29 y 30 de diciembre de 2014, donde el SII trae la UF correcta (24.627,10) y mindicador el dólar.
 
 | Función | Devuelve |
 |---|---|
@@ -101,7 +103,7 @@ Con todo el historial, la librería reproduce las cifras de los proyectos de don
 
 ## Fuentes y advertencias
 
-- **mindicador.cl** es un agregador de terceros, no el publicador oficial. Para usos regulatorios, contrasta con el [Banco Central](https://si3.bcentral.cl/siete) o el [SII](https://www.sii.cl/valores_y_fechas/).
+- **mindicador.cl** es un agregador de terceros, no el publicador oficial, y se cae: en octubre de 2026 devolvió errores 500 varios días. La UF y el dólar tienen respaldo automático en el SII; el resto de las series (cobre, IPC, TPM, IMACEC...) no, y para usos regulatorios conviene contrastarlas con el [Banco Central](https://si3.bcentral.cl/siete).
 - **Superintendencia de Pensiones**: [valores cuota y patrimonio](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). La serie incluye fines de semana con valores casi planos; para modelos de volatilidad conviene quedarse con días hábiles.
 - **CMF**: [estadísticas de morosidad](https://www.cmfchile.cl/portal/estadisticas/626/w4-propertyvalue-28914.html).
 

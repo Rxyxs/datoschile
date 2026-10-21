@@ -28,3 +28,12 @@ def test_morosidad_del_sistema_en_febrero_2020():
 def test_cobre_real():
     df = dc.indicadores.cobre(desde="2024-01-01", hasta="2024-01-31")
     assert 15 <= len(df) <= 23 and df["libra_cobre"].between(3, 5).all()
+
+
+def test_sii_publica_la_uf_correcta_donde_mindicador_falla():
+    filas = {f["fecha"]: f["valor"] for f in dc.sii.descargar_anio("uf", 2014)}
+    # mindicador entrega 608,15 y 607,38 (el dólar) para estos dos días.
+    assert filas["2014-12-29"] == pytest.approx(24627.10, abs=0.01)
+    assert filas["2014-12-30"] == pytest.approx(24627.10, abs=0.01)
+    dolar = {f["fecha"]: f["valor"] for f in dc.sii.descargar_anio("dolar", 2014)}
+    assert dolar["2014-01-02"] == pytest.approx(524.61, abs=0.01)
