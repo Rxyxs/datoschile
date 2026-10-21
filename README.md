@@ -48,7 +48,7 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 
 **`indicadores`**: cualquier serie de [mindicador.cl](https://mindicador.cl), que replica series del Banco Central, el INE y el SII. Si mindicador no responde, la UF y el dólar se piden al SII (avisando con un `warning`).
 
-**`sii`**: la UF y el dólar observado desde las tablas anuales oficiales del [SII](https://www.sii.cl/valores_y_fechas/), sin clave. Coinciden con mindicador en todos los días de 2014 y 2024, salvo el 29 y 30 de diciembre de 2014, donde el SII trae la UF correcta (24.627,10) y mindicador el dólar.
+**`sii`**: la UF y el dólar observado desde las tablas anuales oficiales del [SII](https://www.sii.cl/valores_y_fechas/), sin clave, desde 1990 (el SII usa tres formatos de página según la época y los tres se leen). Coinciden con mindicador en todos los días de 2014 y 2024, salvo el 29 y 30 de diciembre de 2014, donde el SII trae la UF correcta (24.627,10) y mindicador el dólar.
 
 | Función | Devuelve |
 |---|---|
