@@ -50,7 +50,7 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 
 **`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series. If mindicador does not respond, the UF and the dollar are fetched from the SII instead (with a `warning`).
 
-**`sii`**: the UF and the observed dollar from the official yearly tables of the [SII](https://www.sii.cl/valores_y_fechas/), no key needed. They match mindicador on every day of 2014 and 2024, except 29 and 30 December 2014, where the SII has the correct UF (24,627.10) and mindicador the dollar.
+**`sii`**: the UF and the observed dollar from the official yearly tables of the [SII](https://www.sii.cl/valores_y_fechas/), no key needed, from 1990 on (the SII uses three page layouts depending on the period, and all three are parsed). They match mindicador on every day of 2014 and 2024, except 29 and 30 December 2014, where the SII has the correct UF (24,627.10) and mindicador the dollar.
 
 | Function | Returns |
 |---|---|

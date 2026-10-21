@@ -37,3 +37,9 @@ def test_sii_publica_la_uf_correcta_donde_mindicador_falla():
     assert filas["2014-12-30"] == pytest.approx(24627.10, abs=0.01)
     dolar = {f["fecha"]: f["valor"] for f in dc.sii.descargar_anio("dolar", 2014)}
     assert dolar["2014-01-02"] == pytest.approx(524.61, abs=0.01)
+
+
+def test_sii_historico_coincide_con_el_valor_publicado_de_2008():
+    filas = {f["fecha"]: f["valor"] for f in dc.sii.descargar_anio("uf", 2008)}
+    assert filas["2008-12-31"] == pytest.approx(21452.57, abs=0.01)
+    assert len(filas) == 366
