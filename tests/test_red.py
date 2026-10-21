@@ -1,4 +1,6 @@
 """Pruebas contra las fuentes reales. No corren por defecto: pytest -m red"""
+import warnings
+
 import pytest
 
 import datoschile as dc
@@ -7,8 +9,14 @@ pytestmark = pytest.mark.red
 
 
 def test_uf_real_corrige_la_fuga_del_dolar_de_2014():
-    df = dc.indicadores.uf(desde="2014-12-20", hasta="2015-01-05")
-    assert [str(d) for d in df.attrs["informe"]["descartados"]] == ["2014-12-29", "2014-12-30"]
+    with warnings.catch_warnings(record=True) as avisos:
+        warnings.simplefilter("always")
+        df = dc.indicadores.uf(desde="2014-12-20", hasta="2015-01-05")
+    vino_del_sii = any("SII" in str(a.message) for a in avisos)
+    # mindicador trae el dólar en esos dos días y la limpieza los descarta; si mindicador
+    # estaba caído, el respaldo del SII ya trae la UF correcta y no hay nada que descartar.
+    esperados = [] if vino_del_sii else ["2014-12-29", "2014-12-30"]
+    assert [str(d) for d in df.attrs["informe"]["descartados"]] == esperados
     assert df["uf"].between(24500, 24700).all()
     # Valor publicado por el SII para el 31-12-2008
     assert dc.indicadores.uf(desde="2008-12-31", hasta="2008-12-31")["uf"].iloc[0] == pytest.approx(21452.57, abs=0.01)
