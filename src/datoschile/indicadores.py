@@ -14,10 +14,11 @@ from __future__ import annotations
 import json
 import math
 import time
+import warnings
 
 import pandas as pd
 
-from . import _red
+from . import _red, sii
 from ._fechas import es_periodo_cerrado, rango
 
 URL = "https://mindicador.cl/api/{codigo}/{anio}"
@@ -51,11 +52,19 @@ def _validar_codigo(codigo: str) -> None:
 def descargar_anio(codigo: str, anio: int, cache: bool = True) -> list[dict]:
     """Observaciones crudas de un año, tal como las entrega la API (sin limpiar)."""
     _validar_codigo(codigo)
-    contenido = _red.con_cache(
-        f"mindicador/{codigo}/{anio}.json",
-        lambda: _red.descargar(URL.format(codigo=codigo, anio=anio)),
-        usar_cache=cache and es_periodo_cerrado(anio),
-    )
+    try:
+        contenido = _red.con_cache(
+            f"mindicador/{codigo}/{anio}.json",
+            lambda: _red.descargar(URL.format(codigo=codigo, anio=anio)),
+            usar_cache=cache and es_periodo_cerrado(anio),
+        )
+    except ConnectionError as e:
+        # mindicador es un agregador de terceros y se cae; la UF y el dólar tienen una
+        # fuente oficial alternativa en el SII, con los mismos valores día a día.
+        if codigo not in sii.URLS:
+            raise
+        warnings.warn(f"mindicador no respondió ({e}); se usa el SII para {codigo} {anio}.", stacklevel=2)
+        return sii.descargar_anio(codigo, anio, cache=cache)
     serie = json.loads(contenido).get("serie") or []
     # La API entrega la fecha como timestamp UTC de la medianoche chilena (T03:00Z o T04:00Z);
     # los primeros 10 caracteres son el día chileno.

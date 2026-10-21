@@ -7,6 +7,6 @@
 """
 __version__ = "0.1.0"
 
-from . import cmf, indicadores, pensiones  # noqa: E402
+from . import cmf, indicadores, pensiones, sii  # noqa: E402
 
-__all__ = ["cmf", "indicadores", "pensiones", "__version__"]
+__all__ = ["cmf", "indicadores", "pensiones", "sii", "__version__"]
