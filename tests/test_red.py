@@ -1,6 +1,7 @@
 """Pruebas contra las fuentes reales. No corren por defecto: pytest -m red"""
 import warnings
 
+import pandas as pd
 import pytest
 
 import datoschile as dc
@@ -51,3 +52,24 @@ def test_sii_historico_coincide_con_el_valor_publicado_de_2008():
     filas = {f["fecha"]: f["valor"] for f in dc.sii.descargar_anio("uf", 2008)}
     assert filas["2008-12-31"] == pytest.approx(21452.57, abs=0.01)
     assert len(filas) == 366
+
+
+def test_cochilco_cobre_lme_real():
+    df = dc.cochilco.cobre(desde="2025-01-02", hasta="2025-01-03")
+    assert df["cobre"].tolist() == pytest.approx([3.9397, 3.9467])  # 393,97 y 394,67 ¢/lb
+
+
+def test_cochilco_metales_base_al_dia():
+    hoy = pd.Timestamp.today().normalize()
+    df = dc.cochilco.precio("zinc", desde=str((hoy - pd.Timedelta(days=20)).date()))
+    assert len(df) >= 5 and df["zinc"].between(0.3, 5).all()
+
+
+def test_utm_ipc_real_y_empalme():
+    df = dc.sii.utm_ipc(desde=2024, hasta=2025)
+    enero = df.set_index("fecha").loc["2025-01-01"]
+    assert enero["utm"] == 67429 and enero["ipc"] == pytest.approx(106.74)
+    assert [str(d) for d in df.attrs["cambios_de_base"]] == ["2010-01-01", "2014-01-01", "2019-01-01", "2024-01-01"]
+    e = df.set_index("fecha")["ipc_empalmado"]
+    # El SII publica 4,9% de inflación a 12 meses en enero de 2025, a través del cambio de base.
+    assert (e["2025-01-01"] / e["2024-01-01"] - 1) * 100 == pytest.approx(4.9, abs=0.1)

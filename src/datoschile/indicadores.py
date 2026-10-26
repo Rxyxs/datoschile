@@ -196,5 +196,11 @@ def dolar(desde=None, hasta=None, cache: bool = True) -> pd.DataFrame:
 
 
 def cobre(desde=None, hasta=None, cache: bool = True) -> pd.DataFrame:
-    """Precio de la libra de cobre (dólares), días hábiles."""
+    """Precio de la libra de cobre (dólares) según mindicador, días hábiles.
+
+    Ojo: no es el precio LME de ese día. Contra el LME que publica Cochilco coincide al
+    centavo solo en el 9% de los días entre 2013 y 2025, y en el mejor de los desfases
+    (1 a 2 días) en ~20%, con un error medio de 2 centavos. Para análisis diario conviene
+    :func:`datoschile.cochilco.cobre`.
+    """
     return serie("libra_cobre", desde, hasta, cache)

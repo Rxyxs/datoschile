@@ -32,12 +32,17 @@ def _sesion() -> requests.Session:
     return _session
 
 
-def descargar(url: str, params: dict | None = None, reintentos: int = 3, timeout: int = 60) -> bytes:
-    """GET con reintentos y espera creciente. Devuelve el cuerpo en bytes."""
+def descargar(url: str, params: dict | None = None, reintentos: int = 3, timeout: int = 60,
+              datos: dict | None = None) -> bytes:
+    """GET (o POST de formulario, si se pasan ``datos``) con reintentos y espera creciente.
+    Devuelve el cuerpo en bytes."""
     ultimo_error: Exception | None = None
     for intento in range(1, reintentos + 1):
         try:
-            resp = _sesion().get(url, params=params, timeout=timeout)
+            if datos is None:
+                resp = _sesion().get(url, params=params, timeout=timeout)
+            else:
+                resp = _sesion().post(url, params=params, data=datos, timeout=timeout)
             resp.raise_for_status()
             return resp.content
         except requests.RequestException as e:  # red caída, 5xx, timeout

@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel datoschile</title>
+<meta name="description" content="Indicadores públicos de Chile bajados con datoschile: UF, dólar, cobre, inflación, TPM, IMACEC, desempleo, morosidad bancaria y fondos de pensiones.">
+<style>
+:root {
+  color-scheme: light;
+  --fondo: #ffffff; --tarjeta: #f6f8fa; --borde: #d1d9e0; --rejilla: #e6eaef;
+  --texto: #1f2328; --texto-2: #59636e; --texto-3: #818b98;
+  --acento: #2a78d6; --acento-lavado: rgba(42,120,214,.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --codigo: #f6f8fa;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --fondo: #0d1117; --tarjeta: #161b22; --borde: #30363d; --rejilla: #21262d;
+    --texto: #f0f6fc; --texto-2: #9198a1; --texto-3: #6e7681;
+    --acento: #3987e5; --acento-lavado: rgba(57,135,229,.12);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+    --codigo: #161b22;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fondo: #0d1117; --tarjeta: #161b22; --borde: #30363d; --rejilla: #21262d;
+  --texto: #f0f6fc; --texto-2: #9198a1; --texto-3: #6e7681;
+  --acento: #3987e5; --acento-lavado: rgba(57,135,229,.12);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+  --codigo: #161b22;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fondo); color: var(--texto);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 32px 16px 48px; }
+a { color: var(--acento); }
+code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 13px; }
+header { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+h1 { font-size: 34px; line-height: 1.1; margin: 0 0 6px; letter-spacing: -.01em; }
+h2 { font-size: 19px; margin: 0; }
+.sub { color: var(--texto-2); margin: 0; max-width: 620px; }
+.meta { color: var(--texto-3); font-size: 13px; margin-top: 8px; }
+pre.cmd { background: var(--codigo); border: 1px solid var(--borde); border-radius: 8px; padding: 12px 16px; margin: 0; overflow-x: auto; }
+.tema { background: none; border: 1px solid var(--borde); color: var(--texto-2); border-radius: 6px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpi { all: unset; box-sizing: border-box; display: flex; flex-direction: column; background: var(--tarjeta); border: 1px solid var(--borde);
+  border-radius: 10px; padding: 14px 16px 10px; cursor: pointer; min-width: 0; }
+.kpi:hover { border-color: var(--texto-3); }
+.kpi:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.kpi[aria-pressed="true"] { border-color: var(--acento); box-shadow: inset 0 0 0 1px var(--acento); }
+.kpi .et { color: var(--texto-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .val { font-size: 26px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.kpi .del { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; color: var(--texto-2); font-size: 12.5px; }
+.kpi .del span { white-space: nowrap; }
+.kpi .del span:last-child { color: var(--texto-3); }
+.kpi svg { width: 100%; height: 44px; margin-top: 6px; display: block; }
+section.panel { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 18px 20px; margin-top: 16px; }
+.cab { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.cab p { margin: 2px 0 0; color: var(--texto-2); font-size: 13px; }
+.rangos { display: flex; gap: 4px; }
+.rangos button { background: none; border: 1px solid var(--borde); color: var(--texto-2); border-radius: 6px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.rangos button[aria-pressed="true"] { background: var(--acento-lavado); border-color: var(--acento); color: var(--texto); }
+.grafico { position: relative; }
+.grafico svg { width: 100%; display: block; overflow: visible; }
+.eje text { fill: var(--texto-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.eje line { stroke: var(--rejilla); stroke-width: 1; }
+.tip { position: absolute; pointer-events: none; background: var(--fondo); border: 1px solid var(--borde); border-radius: 8px;
+  padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.18); white-space: nowrap; display: none; z-index: 2; }
+.tip b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tip .f { color: var(--texto-2); margin-bottom: 2px; }
+.tip .fila { display: flex; align-items: center; gap: 6px; }
+.clave { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--texto-2); margin: 4px 0 6px; }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda b { color: var(--texto); font-weight: 600; font-variant-numeric: tabular-nums; }
+.dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .dos { grid-template-columns: minmax(0, 1fr); } }
+.dos section.panel { margin-top: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { text-align: left; color: var(--texto-3); font-weight: 500; font-size: 12px; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--borde); }
+td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--rejilla); vertical-align: top; }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { display: inline-block; font-size: 11.5px; color: var(--texto-2); border: 1px solid var(--borde); border-radius: 999px; padding: 0 7px; margin-left: 4px; }
+.hallazgos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+@media (max-width: 900px) { .hallazgos { grid-template-columns: minmax(0, 1fr); } }
+.hallazgo { border: 1px solid var(--borde); border-radius: 8px; padding: 12px 14px; background: var(--fondo); }
+.hallazgo h3 { font-size: 14px; margin: 0 0 4px; }
+.hallazgo p { margin: 0; color: var(--texto-2); font-size: 13px; }
+.hallazgo code { font-size: 12px; }
+.tablawrap { overflow-x: auto; }
+.calc { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; margin-top: 6px; }
+@media (max-width: 560px) { .calc { grid-template-columns: minmax(0, 1fr); } section.panel { padding: 16px 14px; } .kpi { padding: 12px 12px 8px; } .kpi .val { font-size: 22px; } }
+.calc label { display: flex; flex-direction: column; gap: 4px; color: var(--texto-2); font-size: 13px; }
+.calc input { font: inherit; font-size: 16px; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde);
+  border-radius: 6px; padding: 7px 10px; min-width: 0; font-variant-numeric: tabular-nums; }
+.calc input:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.res { margin-top: 16px; }
+.res .grande { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.res p { margin: 4px 0 0; color: var(--texto-2); font-size: 13.5px; }
+.res b { color: var(--texto); font-variant-numeric: tabular-nums; }
+footer { color: var(--texto-3); font-size: 13px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>datoschile</h1>
+    <p class="sub">Datos públicos de Chile, limpios y en un DataFrame. Cada número de esta página se bajó con una línea de la librería, desde la fuente oficial que lo publica.</p>
+    <p class="meta">Datos al <span id="fecha-datos"></span> · se actualiza cada semana · <a href="https://github.com/Rxyxs/datoschile">código e instalación</a> · <button class="tema" id="tema" type="button">Cambiar tema</button></p>
+  </div>
+  <pre class="cmd"><code>pip install git+https://github.com/Rxyxs/datoschile
+
+import datoschile as dc
+dc.resumen()</code></pre>
+</header>
+
+<div class="grid" id="kpis"></div>
+
+<section class="panel" aria-labelledby="t-principal">
+  <div class="cab">
+    <div><h2 id="t-principal"></h2><p id="d-principal"></p></div>
+    <div class="rangos" id="rangos-principal" role="group" aria-label="Rango de tiempo"></div>
+  </div>
+  <div class="grafico" id="g-principal"></div>
+</section>
+
+<section class="panel" aria-labelledby="t-fondos">
+  <div class="cab">
+    <div><h2 id="t-fondos">Fondos de pensiones A a E, en UF</h2>
+      <p>Rentabilidad real acumulada desde el inicio del rango (inicio = 100), todas las AFP ponderadas por patrimonio. <code>dc.pensiones.indice(real=True)</code></p></div>
+    <div class="rangos" id="rangos-fondos" role="group" aria-label="Rango de tiempo de los fondos"></div>
+  </div>
+  <div class="leyenda" id="ley-fondos"></div>
+  <div class="grafico" id="g-fondos"></div>
+</section>
+
+<div class="dos" style="margin-top:16px">
+  <section class="panel" aria-labelledby="t-feriados">
+    <div class="cab"><div><h2 id="t-feriados">Próximos feriados</h2><p>Calculados desde la ley, sin conexión. <code>dc.calendario.feriados()</code></p></div></div>
+    <div class="tablawrap"><table id="tabla-feriados"><thead><tr><th>Fecha</th><th>Feriado</th><th>Ley</th></tr></thead><tbody></tbody></table></div>
+    <p class="meta" id="habiles"></p>
+  </section>
+  <section class="panel" aria-labelledby="t-calc">
+    <div class="cab"><div><h2 id="t-calc">¿Cuánto vale hoy?</h2><p>Un monto en pesos de una fecha, llevado a pesos de hoy con el IPC empalmado y expresado en UF. <code>dc.convertir.deflactar()</code></p></div></div>
+    <form class="calc" id="calc" onsubmit="return false">
+      <label>Monto en pesos<input id="c-monto" type="text" inputmode="numeric" value="1.000.000" autocomplete="off"></label>
+      <label>Mes<input id="c-mes" type="month" value="2015-01"></label>
+    </form>
+    <div class="res" id="c-res" aria-live="polite"></div>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="t-fuentes">
+  <div class="cab"><div><h2 id="t-fuentes">Fuentes y último dato</h2><p>De dónde sale cada serie y hasta cuándo llega.</p></div></div>
+  <div class="tablawrap"><table id="tabla-fuentes"><thead><tr><th>Serie</th><th>Fuente</th><th>Último dato</th><th>Función</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="panel" aria-labelledby="t-hallazgos">
+  <h2 id="t-hallazgos">Lo que la librería corrige</h2>
+  <p class="meta" style="margin-top:2px">Errores reales de las fuentes, cada uno con un test que lo reproduce.</p>
+  <div class="hallazgos" id="hallazgos"></div>
+</section>
+
+<footer>Pablo Reyes · <a href="https://github.com/Rxyxs/datoschile">github.com/Rxyxs/datoschile</a> · licencia MIT. Las cifras son las que publican SII, Cochilco, CMF, Banco Central, INE y Superintendencia de Pensiones; la librería solo las limpia.</footer>
+</main>
+
+<script>
+const DATOS = /*DATOS*/null;
+
+const nf = (d) => new Intl.NumberFormat("es-CL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v, d) => nf(d).format(v).replace("-", "−");
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const DIA = 86400000;
+const aFecha = (n) => new Date(n * DIA);
+const fechaLarga = (n, mensual) => { const d = aFecha(n); return mensual ? `${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}` : `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+const svgNS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, padre) => { const e = document.createElementNS(svgNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (padre) padre.appendChild(e); return e; };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function valorTexto(s, v) { return (s.prefijo || "") + fmt(v, s.dec) + (s.sufijo || ""); }
+
+function variacion12(s) {
+  const p = s.puntos, [t, v] = p[p.length - 1];
+  let antes = null;
+  for (let i = p.length - 1; i >= 0; i--) if (p[i][0] <= t - 365) { antes = p[i][1]; break; }
+  if (antes === null) return "";
+  const d = s.var === "pct" ? (v / antes - 1) * 100 : v - antes;
+  const flecha = d > 0.0005 ? "▲" : d < -0.0005 ? "▼" : "=";
+  return `${flecha} ${fmt(Math.abs(d), s.var === "pct" ? 1 : 2)}${s.var === "pct" ? "%" : " pp"} en 12 meses`;
+}
+
+function ticks(min, max, n) {
+  const paso0 = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(paso0)));
+  const paso = [1, 2, 2.5, 5, 10].map(m => m * mag).find(p => p >= paso0) || 10 * mag;
+  const out = []; for (let v = Math.ceil(min / paso) * paso; v <= max + 1e-9; v += paso) out.push(+v.toFixed(10));
+  return { out, dec: Math.max(0, -Math.floor(Math.log10(paso) + 1e-9)) };
+}
+
+function sparkline(svg, puntos) {
+  const desde = puntos[puntos.length - 1][0] - 730, p = puntos.filter(q => q[0] >= desde);
+  const W = 200, H = 44, xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), r = (y1 - y0) || 1;
+  const X = (t) => 2 + (t - x0) / (x1 - x0 || 1) * (W - 8), Y = (v) => H - 4 - (v - y0) / r * (H - 10);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("preserveAspectRatio", "none");
+  const d = p.map((q, i) => `${i ? "L" : "M"}${X(q[0]).toFixed(1)},${Y(q[1]).toFixed(1)}`).join("");
+  el("path", { d: d + `L${X(x1)},${H}L${X(x0)},${H}Z`, fill: "var(--acento-lavado)" }, svg);
+  el("path", { d, fill: "none", stroke: "var(--acento)", "stroke-width": 2, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, svg);
+}
+
+const RANGOS = [["1A", 365], ["5A", 1826], ["10A", 3652], ["Todo", Infinity]];
+
+function botonesRango(cont, inicial, alCambiar) {
+  cont.innerHTML = "";
+  RANGOS.forEach(([et, dias]) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = et;
+    b.setAttribute("aria-pressed", et === inicial); b.onclick = () => {
+      cont.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); alCambiar(dias);
+    };
+    cont.appendChild(b);
+  });
+}
+
+// Gráfico de líneas con eje, rejilla y cursor con tooltip. series: [{nombre, color, puntos, texto(v)}]
+function lineas(cont, series, opciones) {
+  cont.innerHTML = "";
+  const W = Math.max(cont.clientWidth, 300), H = opciones.alto || 300, m = { i: 52, d: 16, a: 10, b: 26 };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opciones.etiqueta }, cont);
+  const todos = series.flatMap(s => s.puntos);
+  if (!todos.length) return;
+  const xs = todos.map(p => p[0]), ys = todos.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys); const pad = (y1 - y0) * 0.08 || 1; y0 -= pad; y1 += pad;
+  if (opciones.base !== undefined) { y0 = Math.min(y0, opciones.base); y1 = Math.max(y1, opciones.base); }
+  const X = (t) => m.i + (t - x0) / (x1 - x0 || 1) * (W - m.i - m.d), Y = (v) => m.a + (1 - (v - y0) / (y1 - y0)) * (H - m.a - m.b);
+  const eje = el("g", { class: "eje" }, svg);
+  const { out: ty, dec } = ticks(y0, y1, 5);
+  ty.forEach(v => { el("line", { x1: m.i, x2: W - m.d, y1: Y(v), y2: Y(v) }, eje);
+    const t = el("text", { x: m.i - 8, y: Y(v) + 4, "text-anchor": "end" }, eje); t.textContent = fmt(v, Math.min(dec, 2)); });
+  const a0 = aFecha(x0).getUTCFullYear(), a1 = aFecha(x1).getUTCFullYear(), salto = Math.max(1, Math.ceil((a1 - a0 + 1) / Math.max(2, Math.floor(W / 90))));
+  for (let a = a0; a <= a1 + 1; a += salto) { const t = Date.UTC(a, 0, 1) / DIA; if (t < x0 || t > x1) continue;
+    const tx = el("text", { x: X(t), y: H - 6, "text-anchor": "middle" }, eje); tx.textContent = a; }
+  if (x1 - x0 < 500) { // rango corto: marcas por trimestre
+    eje.querySelectorAll("text[text-anchor=middle]").forEach(n => n.remove());
+    const d0 = aFecha(x0); for (let k = 0; k < 20; k++) { const d = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1 + 3 * k, 1) / DIA; if (d > x1) break;
+      const tx = el("text", { x: X(d), y: H - 6, "text-anchor": "middle" }, eje); const f = aFecha(d); tx.textContent = `${MESES[f.getUTCMonth()]} ${String(f.getUTCFullYear()).slice(2)}`; } }
+  if (opciones.base !== undefined) el("line", { x1: m.i, x2: W - m.d, y1: Y(opciones.base), y2: Y(opciones.base), stroke: "var(--texto-3)", "stroke-width": 1 }, svg);
+  series.forEach(s => {
+    const d = s.puntos.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+    if (series.length === 1) el("path", { d: d + `L${X(s.puntos[s.puntos.length - 1][0])},${Y(y0)}L${X(s.puntos[0][0])},${Y(y0)}Z`, fill: "var(--acento-lavado)" }, svg);
+    el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    const u = s.puntos[s.puntos.length - 1];
+    el("circle", { cx: X(u[0]), cy: Y(u[1]), r: 4, fill: s.color, stroke: "var(--tarjeta)", "stroke-width": 2 }, svg);
+  });
+  // cursor
+  const linea = el("line", { y1: m.a, y2: H - m.b, stroke: "var(--texto-3)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const puntos = series.map(s => el("circle", { r: 4, fill: s.color, stroke: "var(--tarjeta)", "stroke-width": 2, visibility: "hidden" }, svg));
+  const tip = document.createElement("div"); tip.className = "tip"; cont.appendChild(tip);
+  const zona = el("rect", { x: m.i, y: 0, width: W - m.i - m.d, height: H, fill: "transparent" }, svg);
+  const cercano = (p, t) => { let lo = 0, hi = p.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (p[mid][0] < t) lo = mid + 1; else hi = mid; }
+    return lo > 0 && t - p[lo - 1][0] < p[lo][0] - t ? p[lo - 1] : p[lo]; };
+  const mover = (ev) => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width;
+    const t = x0 + (px - m.i) / (W - m.i - m.d) * (x1 - x0);
+    const sel = series.map(s => cercano(s.puntos, t)); const ref = sel[0];
+    linea.setAttribute("x1", X(ref[0])); linea.setAttribute("x2", X(ref[0])); linea.setAttribute("visibility", "visible");
+    sel.forEach((p, i) => { puntos[i].setAttribute("cx", X(p[0])); puntos[i].setAttribute("cy", Y(p[1])); puntos[i].setAttribute("visibility", "visible"); });
+    const filas = series.map((s, i) => ({ s, v: sel[i][1] })).sort((a, b) => b.v - a.v);
+    tip.innerHTML = `<div class="f">${fechaLarga(ref[0], opciones.mensual)}</div>` + filas.map(({ s, v }) =>
+      `<div class="fila">${series.length > 1 ? `<span class="clave" style="background:${s.color}"></span>${s.nombre} ` : ""}<b>${s.texto(v)}</b></div>`).join("");
+    tip.style.display = "block";
+    const xr = X(ref[0]) * r.width / W, w = tip.offsetWidth;
+    tip.style.left = (xr + 14 + w > r.width ? xr - 14 - w : xr + 14) + "px"; tip.style.top = "8px";
+  };
+  const salir = () => { tip.style.display = "none"; linea.setAttribute("visibility", "hidden"); puntos.forEach(p => p.setAttribute("visibility", "hidden")); };
+  zona.addEventListener("pointermove", mover); zona.addEventListener("pointerdown", mover); zona.addEventListener("pointerleave", salir);
+}
+
+const S = Object.fromEntries(DATOS.series.map(s => [s.id, s]));
+document.getElementById("fecha-datos").textContent = fechaLarga(DATOS.generado);
+
+// Tarjetas
+let actual = "cobre", rangoPrincipal = 1826, rangoFondos = 1826;
+const kpis = document.getElementById("kpis");
+DATOS.tarjetas.forEach(id => {
+  const s = S[id]; if (!s) return;
+  const b = document.createElement("button"); b.className = "kpi"; b.type = "button"; b.dataset.id = id;
+  b.setAttribute("aria-pressed", id === actual);
+  const u = s.puntos[s.puntos.length - 1];
+  b.innerHTML = `<span class="et">${s.nombre}</span><span class="val">${valorTexto(s, u[1])}</span>
+    <span class="del"><span>${variacion12(s)}</span><span>${s.fuente_corta} · ${fechaLarga(u[0], s.mensual)}</span></span>`;
+  const sv = el("svg", { "aria-hidden": "true" }); b.appendChild(sv); sparkline(sv, s.puntos);
+  b.onclick = () => { actual = id; kpis.querySelectorAll(".kpi").forEach(k => k.setAttribute("aria-pressed", k === b)); dibujarPrincipal(); };
+  kpis.appendChild(b);
+});
+
+function recorte(puntos, dias) { if (!isFinite(dias)) return puntos; const desde = puntos[puntos.length - 1][0] - dias; return puntos.filter(p => p[0] >= desde); }
+
+function dibujarPrincipal() {
+  const s = S[actual];
+  document.getElementById("t-principal").textContent = `${s.nombre} (${s.unidad})`;
+  document.getElementById("d-principal").innerHTML = `${s.descripcion} <code>${s.funcion}</code>`;
+  lineas(document.getElementById("g-principal"), [{ nombre: s.nombre, color: "var(--acento)", puntos: recorte(s.puntos, rangoPrincipal), texto: v => valorTexto(s, v) }],
+    { alto: 300, etiqueta: s.nombre, mensual: s.mensual, base: s.cero ? 0 : undefined });
+}
+
+const FONDOS = ["A", "B", "C", "D", "E"], COLORES = ["--s1", "--s2", "--s3", "--s4", "--s5"];
+function dibujarFondos() {
+  const series = FONDOS.map((f, i) => {
+    const p = recorte(S["fondo_" + f].puntos, rangoFondos), b = p[0][1];
+    return { nombre: "Fondo " + f, color: css(COLORES[i]), puntos: p.map(q => [q[0], q[1] / b * 100]), texto: v => fmt(v, 1) };
+  });
+  document.getElementById("ley-fondos").innerHTML = series.map(s => {
+    const v = s.puntos[s.puntos.length - 1][1];
+    return `<span><span class="clave" style="background:${s.color}"></span>${s.nombre} <b>${v >= 100 ? "+" : "−"}${fmt(Math.abs(v - 100), 1)}%</b></span>`; }).join("");
+  lineas(document.getElementById("g-fondos"), series, { alto: 300, etiqueta: "Fondos de pensiones en UF", base: 100 });
+}
+
+botonesRango(document.getElementById("rangos-principal"), "5A", d => { rangoPrincipal = d; dibujarPrincipal(); });
+botonesRango(document.getElementById("rangos-fondos"), "5A", d => { rangoFondos = d; dibujarFondos(); });
+
+// Feriados y fuentes
+const tbF = document.querySelector("#tabla-feriados tbody");
+DATOS.feriados.forEach(f => { const tr = document.createElement("tr");
+  tr.innerHTML = `<td class="n">${f.dia}</td><td>${f.nombre}${f.irrenunciable ? '<span class="chip">irrenunciable</span>' : ""}</td><td class="n">${f.ley}</td>`; tbF.appendChild(tr); });
+document.getElementById("habiles").textContent = DATOS.habiles;
+const tbS = document.querySelector("#tabla-fuentes tbody");
+DATOS.series.filter(s => !s.oculto && (!s.id.startsWith("fondo_") || s.id === "fondo_A")).forEach(s => { const tr = document.createElement("tr");
+  const u = s.puntos[s.puntos.length - 1][0];
+  tr.innerHTML = `<td>${s.id === "fondo_A" ? "Fondos A–E" : s.nombre}</td><td>${s.fuente}</td><td class="n">${fechaLarga(u, s.mensual)}</td><td><code>${s.funcion}</code></td>`; tbS.appendChild(tr); });
+document.getElementById("hallazgos").innerHTML = DATOS.hallazgos.map(h => `<div class="hallazgo"><h3>${h[0]}</h3><p>${h[1]}</p></div>`).join("");
+
+// Calculadora: pesos de un mes -> pesos del último IPC publicado, y en UF de esa fecha
+(function () {
+  const ipc = S.ipc.puntos, uf = S.uf.puntos, monto = document.getElementById("c-monto"), mes = document.getElementById("c-mes");
+  const res = document.getElementById("c-res"), ult = ipc[ipc.length - 1];
+  const p0 = aFecha(ipc[0][0]), pu = aFecha(ult[0]);
+  mes.min = `${p0.getUTCFullYear()}-${String(p0.getUTCMonth() + 1).padStart(2, "0")}`;
+  mes.max = `${pu.getUTCFullYear()}-${String(pu.getUTCMonth() + 1).padStart(2, "0")}`;
+  const buscar = (p, t) => { let r = null; for (const q of p) { if (q[0] <= t) r = q; else break; } return r; };
+  const calcular = () => {
+    const m = Number(monto.value.replace(/[^\d]/g, "")); const [a, mm] = (mes.value || "").split("-").map(Number);
+    if (!m || !a) { res.innerHTML = "<p>Escribe un monto y elige un mes.</p>"; return; }
+    const t = Date.UTC(a, mm - 1, 1) / DIA, origen = ipc.find(q => q[0] === t);
+    if (!origen) { res.innerHTML = `<p>No hay IPC publicado para ese mes (hay desde ${fechaLarga(ipc[0][0], true)} hasta ${fechaLarga(ult[0], true)}).</p>`; return; }
+    const hoy = m * ult[1] / origen[1], ufDia = buscar(uf, Date.UTC(a, mm - 1, 15) / DIA);
+    res.innerHTML = `<div class="grande">$${fmt(hoy, 0)}</div>
+      <p>$${fmt(m, 0)} de ${fechaLarga(t, true)} equivalen a <b>$${fmt(hoy, 0)}</b> de ${fechaLarga(ult[0], true)}: los precios subieron <b>${fmt((ult[1] / origen[1] - 1) * 100, 1)}%</b>.</p>
+      ${ufDia ? `<p>En ${fechaLarga(t, true)} ese monto eran <b>${fmt(m / ufDia[1], 2)} UF</b> (UF del 15: $${fmt(ufDia[1], 2)}).</p>` : ""}`;
+  };
+  monto.addEventListener("input", () => { const n = monto.value.replace(/[^\d]/g, ""); monto.value = n ? fmt(Number(n), 0) : ""; calcular(); });
+  mes.addEventListener("input", calcular);
+  calcular();
+})();
+
+function todo() { dibujarPrincipal(); dibujarFondos(); }
+todo();
+let espera; addEventListener("resize", () => { clearTimeout(espera); espera = setTimeout(todo, 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", todo);
+document.getElementById("tema").onclick = () => {
+  const oscuro = getComputedStyle(document.documentElement).colorScheme === "dark";
+  document.documentElement.setAttribute("data-theme", oscuro ? "light" : "dark");
+  try { localStorage.setItem("tema", oscuro ? "light" : "dark"); } catch (e) {}
+  todo();
+};
+try { const t = localStorage.getItem("tema"); if (t) { document.documentElement.setAttribute("data-theme", t); todo(); } } catch (e) {}
+</script>
+</body>
+</html>
