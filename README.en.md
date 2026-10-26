@@ -4,37 +4,46 @@
 
 [![tests](https://github.com/Rxyxs/datoschile/actions/workflows/tests.yml/badge.svg)](https://github.com/Rxyxs/datoschile/actions/workflows/tests.yml)
 [![sources](https://github.com/Rxyxs/datoschile/actions/workflows/fuentes.yml/badge.svg)](https://github.com/Rxyxs/datoschile/actions/workflows/fuentes.yml)
+[![dashboard](https://github.com/Rxyxs/datoschile/actions/workflows/panel.yml/badge.svg)](https://rxyxs.github.io/datoschile/)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**Chilean public data, clean and in a DataFrame, in one line.** UF (Chile's inflation-indexed unit), dollar, copper, CPI, policy rate, IMACEC and unemployment; pension fund unit values and assets by fund and administrator (AFP); and bank delinquency by bank from the CMF, the financial regulator.
+**Chilean public data, clean and in a DataFrame, in one line.** UF (Chile's inflation-indexed unit), dollar, UTM, CPI, policy rate, IMACEC and unemployment; daily copper and other metal prices from Cochilco; pension fund unit values; bank delinquency from the CMF, the financial regulator; legal holidays and business days; and conversions between pesos, UF and pesos of another date.
+
+[![Dashboard with UF, dollar, copper, inflation, policy rate, IMACEC, unemployment and bank delinquency, downloaded with datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
+
+**[Open the interactive dashboard →](https://rxyxs.github.io/datoschile/)** (in Spanish). It is rebuilt every week with this same library: charts with time ranges and hover detail, pension funds A to E in UF, upcoming holidays and a "what is it worth today?" calculator.
 
 ```python
 import datoschile as dc
 
+dc.resumen()                                          # latest value of 9 indicators, with source
 dc.indicadores.uf(desde=2020)                         # daily UF, corrected
-dc.indicadores.cobre(desde=2024)                      # copper price per pound
-dc.pensiones.valor_cuota(fondos="AE", desde=2020)     # by day, fund and AFP
+dc.cochilco.cobre(desde=2024)                         # same-day LME copper, US$/lb
+dc.sii.utm_ipc(desde=2010)                            # UTM, UTA and chain-linked CPI
+dc.convertir.deflactar(1_000_000, "2015-01-15")       # those pesos, in today's pesos
+dc.calendario.dias_habiles("2026-09-01", "2026-09-30")
 dc.pensiones.indice(fondos="A", desde=2008, real=True)  # fund index in UF
 dc.cmf.morosidad(desde="2020-01")                     # monthly panel by bank
 ```
 
 The API is in Spanish, like the sources: `desde`/`hasta` mean from/to.
 
-![Funds A and E in UF, bank delinquency and copper price, downloaded with datoschile](docs/ejemplo.png)
-
 ## Why it exists
 
-These sources are public and need no key, but none of them can be used as published. Each problem below came up while working with real data in other projects ([pensions](https://github.com/Rxyxs/chile-pension-fund-switching-cost), [bank delinquency](https://github.com/Rxyxs/chile-banking-delinquency-cmf)), and the library solves it once so nobody else has to find it:
+These sources are public and need no key, but none of them can be used as published. Each problem below came up while working with real data, and the library solves it once so nobody else has to find it:
 
 | Source | Real problem | What datoschile does |
 |---|---|---|
-| UF (mindicador.cl) | On 29 and 30 December 2014 the "UF" is **608.15 and 607.38**: the US dollar leaked into the series. A deflated index jumps ×40 and back. | Drops any day that moves more than 1% from the last valid value (the UF never does) and fills it in. |
+| UF (mindicador.cl) | On 29 and 30 December 2014 the "UF" is **608.15 and 607.38**: the US dollar leaked into the series. A deflated index jumps ×40 and back. | Drops any day that moves more than 1% from the last valid value (the UF never does) and fills it in. If mindicador is down, it uses the SII. |
 | UF (mindicador.cl) | 2015-07-11 appears five times; 2015-12-12 and 2015-12-31 are missing. | Collapses identical copies, **fails if two copies disagree**, and interpolates geometrically, which is how the UF is computed. |
-| Unit values (pension regulator) | The header saying which AFP sits in each column **changes 31 times** in Fund C's file. Read with a single header, columns silently misalign. | Re-reads the header every time it appears. |
-| Unit values | Each AFP's unit value starts at a different level: averaging them is meaningless. | `indice()` weights each AFP's return by its previous-day assets and, with `real=True`, deflates by the corrected UF. |
-| Delinquency (CMF) | 128 Excel files in **three different layouts** between 2016 and 2026, and banks that merge or get renamed. | Detects each file's layout, joins mergers into one series, and fails on any layout it doesn't know. |
-| Delinquency (CMF) | In the 2023-07 file the system row is `---`. | Leaves it as `NaN`: it does not make up a value. |
+| CPI (SII) | The CPI index **changes base four times** (January 2010, 2014, 2019 and 2024: from 134.10 to 101.72 in 2024). Twelve-month inflation computed on the published index is off by up to **25.8 points**. | Detects each base change because the jump does not match the official monthly change, and chain-links the series. Against official 12-month inflation over 213 months, the largest gap is 0.075 points (rounding). |
+| CPI (SII) | December 2011 has the monthly change as `0.6` (with a point) and February 1992 as `(-0,6)`. | Reads both; each has a test. |
+| Copper (mindicador.cl) | Its "copper per pound" is not that day's LME price: it matches Cochilco to the cent on only **9%** of days in 2013–2025 and, at the best lag (1–2 days), ~20%, with a 2-cent mean error. | `cochilco.cobre()` returns the official same-day LME price. |
+| Metals (Cochilco) | Gold and silver stopped updating (London until Nov 2025, COMEX until Mar 2026), with no notice on the page. | `cochilco.precio()` warns when a series has had no data for more than 30 days. |
+| Holidays | Common lists miss 17 and 20 September 2010 (Law 20,450, the Bicentennial); one puts the 2009 election on Friday the 11th when it was Sunday the 13th. Indigenous Peoples' Day falls on the solstice **in Chilean time**: in 2025 it was the 20th although the solstice was on the 21st in UTC. | Computes holidays from the law and checks them against two independent sources (below). |
+| Unit values (pension regulator) | The header saying which AFP sits in each column **changes 31 times** in Fund C's file. Read with a single header, columns silently misalign. | Re-reads the header every time it appears. `indice()` weights each AFP's return by its previous-day assets and, with `real=True`, deflates by the corrected UF. |
+| Delinquency (CMF) | 128 Excel files in **three layouts** between 2016 and 2026, and banks that merge or get renamed. In the 2023-07 file the system row is `---`. | Detects each file's layout, joins mergers into one series, fails on unknown layouts, and leaves `---` as `NaN`: it does not make up a value. |
 
 Every cleaning rule has a test that reproduces the original problem.
 
@@ -48,17 +57,46 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 
 ## What's inside
 
-**`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series. If mindicador does not respond, the UF and the dollar are fetched from the SII instead (with a `warning`).
+**`resumen()`**: one row per indicator (UF, dollar, LME copper, UTM, 12-month inflation, policy rate, IMACEC, unemployment and bank delinquency) with its latest value, the date of the data point, the 12-month change and the source. Each comes from its official source when there is one; if a source is down, that row is left empty with the reason and the rest is returned anyway.
 
-**`sii`**: the UF and the observed dollar from the official yearly tables of the [SII](https://www.sii.cl/valores_y_fechas/), no key needed, from 1990 on (the SII uses three page layouts depending on the period, and all three are parsed). They match mindicador on every day of 2014 and 2024, except 29 and 30 December 2014, where the SII has the correct UF (24,627.10) and mindicador the dollar.
+**`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series. If mindicador does not respond, the UF and the dollar are fetched from the SII instead (with a `warning`).
 
 | Function | Returns |
 |---|---|
 | `uf(desde, hasta)` | Corrected daily UF (one value per calendar day). What was corrected is in `df.attrs["informe"]`. |
-| `dolar(...)`, `cobre(...)` | Observed dollar and copper per pound, business days. |
+| `dolar(...)` | Observed dollar, business days. |
 | `serie(codigo, desde, hasta)` | Any of: `uf`, `ivp`, `dolar`, `euro`, `utm`, `ipc`, `tpm`, `imacec`, `tasa_desempleo`, `libra_cobre`, `bitcoin` (details in `indicadores.SERIES`). |
 
-**`pensiones`**: daily unit values and assets since 2002, funds A–E.
+**`sii`**: the official tables of the [SII](https://www.sii.cl/valores_y_fechas/), the tax authority, no key needed, from 1990 on.
+
+| Function | Returns |
+|---|---|
+| `descargar_anio("uf" \| "dolar", anio)` | One year of UF or observed dollar (the SII uses three page layouts depending on the period, and all three are parsed). They match mindicador on every day of 2014 and 2024, except 29 and 30 December 2014, where the SII has the correct UF. |
+| `utm_ipc(desde, hasta)` | Monthly: `utm`, `uta`, `ipc` (as published), `ipc_var_mensual` (the official INE change) and `ipc_empalmado` (on a single base: the one to deflate with). Detected base changes are in `df.attrs["cambios_de_base"]`. |
+
+**`cochilco`**: daily prices from the [Chilean Copper Commission](https://boletin.cochilco.cl/estadisticas/grafico.asp).
+
+| Function | Returns |
+|---|---|
+| `cobre(desde, hasta, bolsa="LME")` | Copper in dollars per pound, LME from 1996 or COMEX from 2005. |
+| `precio(metal, desde, hasta, bolsa)` | `cobre`, `oro`, `plata`, `zinc`, `aluminio`, `niquel`, `plomo` or `estanio` (copper, gold, silver, zinc, aluminium, nickel, lead, tin), from 2001. Base metals in US$/lb (Cochilco publishes cents), gold and silver in US$/troy ounce. |
+
+**`calendario`**: Chilean legal holidays from 2008, computed from the law and offline (it works for future years; elections and one-off laws are loaded through 2027).
+
+| Function | Returns |
+|---|---|
+| `feriados(desde, hasta, regionales)` | `fecha`, `nombre`, `irrenunciable` (shops must close), `ley` and `alcance` (scope). `feriados(2026)` is all of 2026. `regionales=True` adds Arica (7 June) and Chillán (20 August). |
+| `es_feriado(fecha)`, `es_habil(fecha, bancario)` | With `bancario=True`, 31 December is not a business day either (bank holiday). |
+| `dias_habiles(desde, hasta)`, `sumar_habiles(fecha, n)` | Business days in a range; the date `n` business days after (or before). |
+
+**`convertir`**: to compare amounts over time. They take a number and a date, or whole columns.
+
+| Function | Returns |
+|---|---|
+| `pesos_a_uf(montos, fechas)`, `uf_a_pesos(montos, fechas)` | Using each date's corrected UF. |
+| `deflactar(montos, fechas, a=None)` | Pesos of each date in pesos of month `a` (by default, the latest published CPI), using the chain-linked CPI. |
+
+**`pensiones`**: daily unit values and assets since 2002, multi-funds A–E.
 
 | Function | Returns |
 |---|---|
@@ -69,31 +107,39 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 
 | Function | Returns |
 |---|---|
-| `morosidad(desde, hasta, solo_sistema)` | One row per month and bank: % delinquent in `total`, `clientes`, `comercial`, `personas`, `consumo`, `vivienda`, plus the delinquent amount in CLP millions. |
+| `morosidad(desde, hasta, solo_sistema)` | One row per month and bank: % delinquent in `total`, `clientes`, `comercial`, `personas`, `consumo`, `vivienda`, and the delinquent amount in millions of pesos. |
 
 `desde` and `hasta` take a year (`2020`), a month (`"2020-03"`) or a date (`"2020-03-15"`).
 
 ### From the terminal
 
 ```bash
+datoschile resumen
 datoschile uf --desde 2020 -o uf.csv
-datoschile serie libra_cobre --desde 2024
+datoschile metal cobre --desde 2024 --bolsa COMEX
+datoschile utm-ipc --desde 2010 -o cpi.csv
+datoschile feriados --desde 2026 --hasta 2027 --regionales
 datoschile indice --fondos A --desde 2008 --real -o fund_a_real.csv
 datoschile morosidad --desde 2020-01 --solo-sistema
 ```
 
 ## Cache
 
-A year that has ended doesn't change, so it is stored in `~/.cache/datoschile` and never requested again; the current year (and the CMF's last three months, which may be revised) is always downloaded fresh. The first full UF download takes about 2 minutes because mindicador is slow; after that, closed years load from disk in hundredths of a second and only the current year is fetched again (a few seconds). Use another folder with `DATOSCHILE_CACHE=/path`; skip the cache with `cache=False` or `--sin-cache`.
+A year that has ended doesn't change, so it is stored in `~/.cache/datoschile` and never requested again; the current year (and the CMF's last three months, which can be revised) is always downloaded again. The first full UF download takes about 2 minutes because mindicador is slow, and Cochilco takes about 9 seconds per year; after that, closed years load from disk in hundredths of a second. To use another folder: `DATOSCHILE_CACHE=/path`. To skip the cache: `cache=False` or `--sin-cache`.
 
-## Checked against the sources
+## Verified against the sources
 
-Besides the offline tests (run on every change), a separate set downloads real data and checks known values. It runs **every week** on GitHub Actions, to find out a source changed its format before its users do:
+Offline tests run on every change (Python 3.10 to 3.13). Two of them check the holidays against independent sources:
 
-- UF on 2008-12-31 = 21,452.57, the value published by the SII.
-- The 2014 dollar leak is detected and corrected.
-- Fund A falls between 20% and 45% in 2008.
-- System delinquency in February 2020 is 2.04%.
+- **The yearly holiday table of feriados.cl, 2009 to 2027** (archive.org snapshots of each year): every year matches except the two differences explained above (2009 and the 2010 Bicentennial).
+- **The days with no observed dollar in the SII tables, 2008 to 2026**: the dollar is published every business day, so a weekday without one is a holiday. All 208 days match the computed holidays, both ways.
+
+Another set downloads real data and checks known values. It runs **every week** on GitHub Actions, to find out a source changed its format before a user does:
+
+- UF on 2008-12-31 = 21,452.57, the value published by the SII; the 2014 dollar leak is detected and fixed.
+- LME copper on 2025-01-02 = 3.9397 US$/lb at Cochilco, and base metals are still current.
+- UTM in January 2025 = $67,429; all four CPI base changes are detected, and chain-linked 12-month inflation for January 2025 is the one the SII publishes (4.9%).
+- Fund A falls between 20% and 45% in 2008; system delinquency in February 2020 is 2.04%.
 
 ```bash
 pip install -e ".[dev]"
@@ -101,15 +147,23 @@ pytest                 # offline
 pytest -m red          # against the real sources
 ```
 
-Over the full history, the library reproduces the figures of the projects it came from: Fund A falls 24.6% and Fund E 3.7% between 20 February and 23 March 2020, and system delinquency goes from 2.04% (Feb 2020) to 1.26% (Dec 2021) and 2.44% (Aug 2026).
+With the full history, the library reproduces the figures of the projects it came from: Fund A falls 24.6% and Fund E 3.7% between 20 February and 23 March 2020, and system delinquency goes from 2.04% (Feb 2020) to 1.26% (Dec 2021) and 2.44% (Aug 2026).
+
+## Dashboard and cover image
+
+- [`ejemplos/sitio.py`](ejemplos/sitio.py) builds the [web dashboard](https://rxyxs.github.io/datoschile/): a single HTML page with no dependencies and the data embedded. The `panel` workflow rebuilds it every Monday and publishes it on GitHub Pages.
+- [`ejemplos/portada.py`](ejemplos/portada.py) builds the image above.
 
 ## Sources and caveats
 
-- **mindicador.cl** is a third-party aggregator, not the official publisher, and it goes down: in October 2026 it returned 500 errors for several days. The UF and the dollar fall back to the SII automatically; the other series (copper, CPI, policy rate, IMACEC...) do not, and for regulatory use they should be checked against the [Central Bank](https://si3.bcentral.cl/siete).
-- **Pension regulator (Superintendencia de Pensiones)**: [unit values and assets](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). The series includes weekends with nearly flat values; for volatility models, keep business days only.
+- **mindicador.cl** is a third-party aggregator, not the official publisher, and it goes down: in October 2026 it returned 500 errors for several days. The UF and the dollar fall back to the SII automatically; policy rate, IMACEC and unemployment do not, and for regulatory use they should be checked against the [Central Bank](https://si3.bcentral.cl/siete).
+- **SII**: [UF](https://www.sii.cl/valores_y_fechas/uf/uf2026.htm), [dollar](https://www.sii.cl/valores_y_fechas/dolar/dolar2026.htm) and [UTM, UTA and CPI](https://www.sii.cl/valores_y_fechas/utm/utm2026.htm). The current month's dollar table is sometimes loaded days late; `resumen()` takes the dollar from mindicador and falls back to the SII only if mindicador is down.
+- **Cochilco**: [metal price bulletin](https://boletin.cochilco.cl/estadisticas/grafico.asp).
+- **Pension regulator**: [unit values and assets](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). The series includes weekends with nearly flat values; for volatility models, keep business days only.
 - **CMF**: [delinquency statistics](https://www.cmfchile.cl/portal/estadisticas/626/w4-propertyvalue-28914.html).
+- **Holidays**: the text of each law at the [National Congress Library](https://www.bcn.cl/leychile). One-off regional holidays (for example, the Pope's visit in 2018) are not included.
 
-The library downloads at a moderate pace (a pause between requests) and caches what doesn't change, to avoid loading public services.
+The library downloads at a moderate pace (a pause between requests) and caches what doesn't change, so as not to load public services.
 
 ## License
 

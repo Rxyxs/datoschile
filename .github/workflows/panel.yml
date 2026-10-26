@@ -1,0 +1,52 @@
+# Reconstruye el panel web con datos frescos y lo publica en GitHub Pages.
+name: panel
+
+on:
+  push:
+    branches: [main]
+    paths: ["src/**", "ejemplos/**", ".github/workflows/panel.yml"]
+  schedule:
+    - cron: "0 13 * * 1"  # lunes 13:00 UTC, después del workflow "fuentes"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      # Los años cerrados no cambian: la caché evita volver a pedirlos a las fuentes.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/datoschile
+          key: datoschile-${{ github.run_id }}
+          restore-keys: datoschile-
+      - name: Construir el panel
+        run: python ejemplos/sitio.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sitio
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

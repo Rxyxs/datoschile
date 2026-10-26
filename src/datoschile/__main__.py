@@ -5,13 +5,18 @@
     python -m datoschile valor-cuota --fondos AE --desde 2024
     python -m datoschile indice --fondos A --desde 2008 --real
     python -m datoschile morosidad --desde 2020-01 --solo-sistema
+    python -m datoschile resumen
+    python -m datoschile metal cobre --desde 2024 --bolsa COMEX
+    python -m datoschile utm-ipc --desde 2010
+    python -m datoschile feriados --desde 2026 --regionales
 """
 from __future__ import annotations
 
 import argparse
 import sys
 
-from . import cmf, indicadores, pensiones
+from . import calendario, cmf, cochilco, indicadores, pensiones, sii
+from .panel import resumen
 
 
 def _desde_hasta(v: str | None):
@@ -42,10 +47,32 @@ def main(argv: list[str] | None = None) -> int:
     m = sub.add_parser("morosidad", help="morosidad 90+ días por banco (CMF)")
     m.add_argument("--solo-sistema", action="store_true")
     comun(m)
+    r = sub.add_parser("resumen", help="último valor de los indicadores clave")
+    r.add_argument("--salida", "-o", help="archivo CSV (por defecto, la pantalla)")
+    r.add_argument("--sin-cache", action="store_true", help="no leer ni guardar la caché en disco")
+    me = sub.add_parser("metal", help="precio diario de un metal (Cochilco)")
+    me.add_argument("metal", choices=sorted(cochilco.METALES))
+    me.add_argument("--bolsa", help="LME, COMEX, ... (por defecto, la principal del metal)")
+    comun(me)
+    comun(sub.add_parser("utm-ipc", help="UTM, UTA e IPC mensual (SII), con el IPC empalmado"))
+    fe = sub.add_parser("feriados", help="feriados legales (sin conexión)")
+    fe.add_argument("--regionales", action="store_true", help="incluir los feriados regionales")
+    fe.add_argument("--desde", help="año, AAAA-MM o AAAA-MM-DD")
+    fe.add_argument("--hasta", help="año, AAAA-MM o AAAA-MM-DD")
+    fe.add_argument("--salida", "-o", help="archivo CSV (por defecto, la pantalla)")
 
     a = p.parse_args(argv)
-    desde, hasta, cache = _desde_hasta(a.desde), _desde_hasta(a.hasta), not a.sin_cache
-    if a.comando == "uf":
+    desde, hasta = _desde_hasta(getattr(a, "desde", None)), _desde_hasta(getattr(a, "hasta", None))
+    cache = not getattr(a, "sin_cache", False)
+    if a.comando == "resumen":
+        df = resumen(cache=cache)
+    elif a.comando == "metal":
+        df = cochilco.precio(a.metal, desde, hasta, bolsa=a.bolsa, cache=cache)
+    elif a.comando == "utm-ipc":
+        df = sii.utm_ipc(desde, hasta, cache=cache)
+    elif a.comando == "feriados":
+        df = calendario.feriados(desde, hasta, regionales=a.regionales)
+    elif a.comando == "uf":
         df = indicadores.uf(desde, hasta, cache=cache)
     elif a.comando == "serie":
         df = indicadores.serie(a.codigo, desde, hasta, cache=cache)

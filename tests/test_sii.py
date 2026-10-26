@@ -106,3 +106,52 @@ def test_sin_respaldo_para_series_que_el_sii_no_publica(monkeypatch):
     monkeypatch.setattr(indicadores._red, "con_cache", caido)
     with pytest.raises(ConnectionError):
         indicadores.descargar_anio("libra_cobre", 2024)
+
+
+# --- UTM, UTA e IPC ---------------------------------------------------------------------------
+
+def test_utm_formato_actual_de_seis_columnas():
+    html = """<tr>
+       <th>Enero</th>
+       <td>69.751</td>
+       <td>837.012</td>
+       <td align='center'>109,71</td>
+       <td align='center'>0,4</td>
+       <td align='center'>0,4</td>
+       <td align='center'>2,8</td>
+     </tr>
+     <tr><th>Diciembre</th><td>39.021</td><td>468.252</td><td>107,02</td><td>0.6</td><td>4,4</td><td>4,4</td></tr>
+     <tr><th>Noviembre</th><td>72.151</td><td>865.812</td><td></td><td></td><td></td><td></td></tr>"""
+    filas = sii.parsear_utm(html, 2026)
+    assert filas[0] == {"fecha": "2026-01-01", "utm": 69751.0, "uta": 837012.0, "ipc": 109.71, "ipc_var_mensual": 0.4}
+    assert filas[1]["ipc_var_mensual"] == 0.6           # "0.6" con punto, como en dic-2011
+    assert filas[2]["utm"] == 72151.0 and filas[2]["ipc"] != filas[2]["ipc"]  # IPC aún no publicado
+
+
+def test_utm_formatos_historicos_de_tres_y_cuatro_columnas():
+    tres = "<tr><th align='left'>Febrero</th><td>14.745</td><td>(-0,6)</td><td>39,69</td></tr>"
+    cuatro = "<tr><th align='left'>Enero</th><td>30.399</td><td>364.788</td><td>-0,3</td><td>81,192</td></tr>"
+    assert sii.parsear_utm(tres, 1992) == [{"fecha": "1992-02-01", "utm": 14745.0, "uta": 14745.0 * 12,
+                                           "ipc": 39.69, "ipc_var_mensual": -0.6}]
+    assert sii.parsear_utm(cuatro, 2005)[0] == {"fecha": "2005-01-01", "utm": 30399.0, "uta": 364788.0,
+                                                "ipc": 81.192, "ipc_var_mensual": -0.3}
+
+
+def test_utm_formato_desconocido_falla():
+    with pytest.raises(ValueError, match="desconocido"):
+        sii.parsear_utm("<tr><th>Enero</th><td>1</td><td>2</td></tr>", 2020)
+
+
+def test_empalme_detecta_el_cambio_de_base_y_reescala_lo_anterior():
+    import pandas as pd
+    df = pd.DataFrame({
+        "fecha": pd.to_datetime(["2023-11-01", "2023-12-01", "2024-01-01", "2024-02-01"]),
+        "ipc": [134.77, 134.10, 101.72, 102.33],
+        "ipc_var_mensual": [0.7, -0.5, 0.7, 0.6],
+    })
+    out = sii.empalmar_ipc(df)
+    assert [str(d) for d in out.attrs["cambios_de_base"]] == ["2024-01-01"]
+    e = out["ipc_empalmado"]
+    assert e.iloc[2] == 101.72 and e.iloc[3] == 102.33          # la base nueva no se toca
+    assert e.iloc[2] / e.iloc[1] == pytest.approx(1.007)       # el salto es la variación oficial
+    assert e.iloc[1] / e.iloc[0] == pytest.approx(134.10 / 134.77)  # el tramo viejo conserva su forma
