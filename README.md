@@ -8,7 +8,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
 
-**Datos públicos de Chile, limpios y en un DataFrame, en una línea.** UF, dólar, UTM, IPC, TPM, IMACEC y desempleo; precios diarios del cobre y otros metales desde Cochilco; valores cuota de las AFP; morosidad bancaria de la CMF; feriados legales y días hábiles; y conversiones entre pesos, UF y pesos de otra fecha.
+**Datos públicos de Chile, limpios y en un DataFrame, en una línea.** UF, dólar, euro, UTM, IPC, TPM, IMACEC, PIB, desempleo y reservas internacionales desde el Banco Central, sin clave; precios diarios del cobre y otros metales desde Cochilco; valores cuota de las AFP; morosidad bancaria de la CMF; feriados legales y días hábiles; y conversiones entre pesos, UF y pesos de otra fecha.
 
 [![Panel con UF, dólar, cobre, inflación, TPM, IMACEC, desempleo y morosidad bancaria, bajados con datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
@@ -19,6 +19,7 @@ import datoschile as dc
 
 dc.resumen()                                          # último valor de 9 indicadores, con su fuente
 dc.indicadores.uf(desde=2020)                         # UF diaria, corregida
+dc.bcentral.serie("imacec")                           # serie oficial del Banco Central
 dc.cochilco.cobre(desde=2024)                         # cobre LME del día, US$/lb
 dc.sii.utm_ipc(desde=2010)                            # UTM, UTA e IPC empalmado
 dc.convertir.deflactar(1_000_000, "2015-01-15")       # esos pesos, en pesos de hoy
@@ -37,7 +38,8 @@ Estas fuentes son públicas y no piden clave, pero ninguna se puede usar tal com
 | UF (mindicador.cl) | El 11-07-2015 aparece cinco veces; faltan el 12-12-2015 y el 31-12-2015. | Colapsa copias idénticas, **falla si dos copias no coinciden**, e interpola geométricamente, que es como se calcula la UF. |
 | IPC (SII) | El IPC en puntos **cambia de base cuatro veces** (enero de 2010, 2014, 2019 y 2024: de 134,10 a 101,72 en 2024). Una inflación a 12 meses calculada sobre la serie publicada se equivoca hasta en **25,8 puntos**. | Detecta cada cambio de base porque el salto no calza con la variación mensual oficial y empalma la serie. Contra la inflación a 12 meses oficial, en 213 meses, la diferencia máxima es 0,075 puntos (redondeo). |
 | IPC (SII) | Diciembre de 2011 trae la variación como `0.6` (con punto) y febrero de 1992 como `(-0,6)`. | Lee ambos; hay un test para cada uno. |
-| Cobre (mindicador.cl) | La "libra de cobre" no es el precio LME del día: coincide al centavo con el de Cochilco solo el **9%** de los días de 2013 a 2025 y, con el mejor desfase (1 a 2 días), ~20%, con 2 centavos de error medio. | `cochilco.cobre()` trae el precio oficial LME del mismo día. |
+| Cobre (Banco Central y mindicador.cl) | La "libra de cobre" que publica el Banco Central (y que mindicador copia: 99,7% de los días idénticos) no es el precio LME del día: coincide al centavo con el de Cochilco solo el **9%** de los días de 2013 a 2025 y, con el mejor desfase (1 a 2 días), ~20%, con 2 centavos de error medio. | `cochilco.cobre()` trae el precio oficial LME del mismo día. |
+| IMACEC y desempleo (mindicador.cl) | mindicador guarda la **primera cifra publicada** y no la revisa: el IMACEC de abril de 2020 aparece como −14,1% y el vigente del Banco Central es −15,1%. Solo el **3,8%** de los meses de 2013 a 2025 coincide (hasta 2,8 puntos de diferencia). El desempleo es igual desde 2020, pero 2013–2019 son cifras anteriores a la revisión del INE (hasta 0,55 puntos). | `bcentral.serie("imacec")` y `bcentral.serie("desempleo")` traen la serie vigente; `resumen()` y el panel las usan. Estas dos no caen a mindicador cuando el Banco Central no responde, para no mezclar versiones. |
 | Metales (Cochilco) | El oro y la plata dejaron de actualizarse (Londres hasta nov-2025, COMEX hasta mar-2026), sin aviso en la página. | `cochilco.precio()` avisa con un `warning` cuando una serie lleva más de 30 días sin datos. |
 | Feriados | Las listas usuales omiten el 17 y el 20 de septiembre de 2010 (Ley 20.450, Bicentenario); una pone la elección de 2009 el viernes 11 y fue el domingo 13. El Día de los Pueblos Indígenas cae el día del solsticio **en hora de Chile**: en 2025 fue el 20 aunque en UTC el solsticio fue el 21. | Calcula los feriados desde la ley y los valida contra dos fuentes independientes (abajo). |
 | Valores cuota (Superintendencia de Pensiones) | El encabezado que dice qué AFP va en cada columna **cambia 31 veces** en el archivo del fondo C. Leído con un solo encabezado, las columnas se desalinean en silencio. | Vuelve a leer el encabezado cada vez que aparece. `indice()` pondera el retorno de cada AFP por su patrimonio del día anterior y, con `real=True`, lo deflacta por la UF corregida. |
@@ -55,9 +57,15 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 
 ## Qué trae
 
-**`resumen()`**: una fila por indicador (UF, dólar, cobre LME, UTM, inflación a 12 meses, TPM, IMACEC, desempleo y morosidad bancaria) con su último valor, la fecha del dato, la variación en 12 meses y la fuente. Cada uno sale de su fuente oficial cuando la hay; si una fuente no responde, esa fila queda vacía con el motivo y el resto se entrega igual.
+**`resumen()`**: una fila por indicador (UF, dólar, cobre LME, UTM, inflación a 12 meses, TPM, IMACEC, desempleo y morosidad bancaria) con su último valor, la fecha del dato, la variación en 12 meses y la fuente. Cada uno sale de su fuente oficial (Banco Central, SII, Cochilco, CMF); si una fuente no responde, esa fila queda vacía con el motivo y el resto se entrega igual.
 
-**`indicadores`**: cualquier serie de [mindicador.cl](https://mindicador.cl), que replica series del Banco Central, el INE y el SII. Si mindicador no responde, la UF y el dólar se piden al SII (avisando con un `warning`).
+**`bcentral`**: 17 series oficiales del [Banco Central](https://si3.bcentral.cl/Indicadoressiete/secure/Indicadoresdiarios.aspx), sin usuario ni clave. Su API pide registro, pero la página pública "Indicadores diarios" publica la historia completa de cada serie; las diarias vienen un año por página y la librería pide cada año con el mismo selector que usa la página.
+
+| Función | Devuelve |
+|---|---|
+| `serie(codigo, desde, hasta)` | Diarias: `dolar`, `euro`, `uf`, `ivp`, `tpm`, `cobre`, `oro`, `plata`, `tcm` (tipo de cambio multilateral), `euro_por_dolar`, `yen_por_dolar`, desde 1997. Mensuales: `imacec` (desde 1997), `ipc` (desde 1928), `desempleo` (desde 2010), `utm` (desde 1990), `reservas` (desde 1982). Trimestral: `pib` (desde 1996). Detalle y unidades en `bcentral.SERIES`. |
+
+**`indicadores`**: cualquier serie de [mindicador.cl](https://mindicador.cl), que replica series del Banco Central, el INE y el SII. Si mindicador no responde, la UF y el dólar se piden al SII, y TPM, IPC, UTM y euro al Banco Central (avisando con un `warning`). IMACEC y desempleo no tienen respaldo automático porque en mindicador no son las cifras vigentes (ver arriba): para esas dos conviene `bcentral.serie()`.
 
 | Función | Devuelve |
 |---|---|
@@ -113,6 +121,7 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 
 ```bash
 datoschile resumen
+datoschile bcentral imacec --desde 2015 -o imacec.csv
 datoschile uf --desde 2020 -o uf.csv
 datoschile metal cobre --desde 2024 --bolsa COMEX
 datoschile utm-ipc --desde 2010 -o ipc.csv
@@ -135,6 +144,7 @@ Los tests sin conexión corren en cada cambio (Python 3.10 a 3.13). Dos de ellos
 Otro conjunto descarga datos reales y comprueba valores conocidos. Corre **cada semana** en GitHub Actions, para enterarse si una fuente cambió su formato antes que quien la use:
 
 - UF del 31-12-2008 = 21.452,57, el valor publicado por el SII; la fuga del dólar de 2014 se detecta y se corrige.
+- Banco Central: TPM del 2-1-2024 = 8,25%; IMACEC de abril de 2020 bajo −10%; PIB de 1996 en cuatro trimestres; dólar del 2-1-2014 = 524,61, el mismo valor del SII.
 - Cobre LME del 2-1-2025 = 3,9397 US$/lb en Cochilco, y los metales base siguen al día.
 - UTM de enero de 2025 = $67.429; los cuatro cambios de base del IPC se detectan, y la inflación a 12 meses empalmada de enero de 2025 es la que publica el SII (4,9%).
 - El fondo A cae entre 20% y 45% en 2008; la morosidad del sistema en febrero de 2020 es 2,04%.
@@ -154,7 +164,8 @@ Con todo el historial, la librería reproduce las cifras de los proyectos de don
 
 ## Fuentes y advertencias
 
-- **mindicador.cl** es un agregador de terceros, no el publicador oficial, y se cae: en octubre de 2026 devolvió errores 500 varios días. La UF y el dólar tienen respaldo automático en el SII; TPM, IMACEC y desempleo no, y para usos regulatorios conviene contrastarlas con el [Banco Central](https://si3.bcentral.cl/siete).
+- **mindicador.cl** es un agregador de terceros, no el publicador oficial, y se cae: en octubre de 2026 devolvió errores 500 varios días. La UF y el dólar tienen respaldo automático en el SII, y TPM, IPC, UTM y euro en el Banco Central. Para IMACEC y desempleo, usar `bcentral.serie()` directamente.
+- **Banco Central**: [Indicadores diarios](https://si3.bcentral.cl/Indicadoressiete/secure/Indicadoresdiarios.aspx). Las páginas llevan un parámetro opaco que la librería lee del índice en cada sesión; si el Banco Central cambia el diseño, el test semanal lo detecta.
 - **SII**: [UF](https://www.sii.cl/valores_y_fechas/uf/uf2026.htm), [dólar](https://www.sii.cl/valores_y_fechas/dolar/dolar2026.htm) y [UTM, UTA e IPC](https://www.sii.cl/valores_y_fechas/utm/utm2026.htm). La tabla del dólar del mes en curso a veces se carga con días de atraso; `resumen()` toma el dólar de mindicador y cae al SII solo si mindicador no responde.
 - **Cochilco**: [boletín de precios de metales](https://boletin.cochilco.cl/estadisticas/grafico.asp).
 - **Superintendencia de Pensiones**: [valores cuota y patrimonio](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). La serie incluye fines de semana con valores casi planos; para modelos de volatilidad conviene quedarse con días hábiles.

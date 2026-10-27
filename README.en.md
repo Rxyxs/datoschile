@@ -8,7 +8,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**Chilean public data, clean and in a DataFrame, in one line.** UF (Chile's inflation-indexed unit), dollar, UTM, CPI, policy rate, IMACEC and unemployment; daily copper and other metal prices from Cochilco; pension fund unit values; bank delinquency from the CMF, the financial regulator; legal holidays and business days; and conversions between pesos, UF and pesos of another date.
+**Chilean public data, clean and in a DataFrame, in one line.** UF (Chile's inflation-indexed unit), dollar, euro, UTM, CPI, policy rate, IMACEC, GDP, unemployment and international reserves from the Central Bank, no key needed; daily copper and other metal prices from Cochilco; pension fund unit values; bank delinquency from the CMF, the financial regulator; legal holidays and business days; and conversions between pesos, UF and pesos of another date.
 
 [![Dashboard with UF, dollar, copper, inflation, policy rate, IMACEC, unemployment and bank delinquency, downloaded with datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
@@ -19,6 +19,7 @@ import datoschile as dc
 
 dc.resumen()                                          # latest value of 9 indicators, with source
 dc.indicadores.uf(desde=2020)                         # daily UF, corrected
+dc.bcentral.serie("imacec")                           # official Central Bank series
 dc.cochilco.cobre(desde=2024)                         # same-day LME copper, US$/lb
 dc.sii.utm_ipc(desde=2010)                            # UTM, UTA and chain-linked CPI
 dc.convertir.deflactar(1_000_000, "2015-01-15")       # those pesos, in today's pesos
@@ -39,7 +40,8 @@ These sources are public and need no key, but none of them can be used as publis
 | UF (mindicador.cl) | 2015-07-11 appears five times; 2015-12-12 and 2015-12-31 are missing. | Collapses identical copies, **fails if two copies disagree**, and interpolates geometrically, which is how the UF is computed. |
 | CPI (SII) | The CPI index **changes base four times** (January 2010, 2014, 2019 and 2024: from 134.10 to 101.72 in 2024). Twelve-month inflation computed on the published index is off by up to **25.8 points**. | Detects each base change because the jump does not match the official monthly change, and chain-links the series. Against official 12-month inflation over 213 months, the largest gap is 0.075 points (rounding). |
 | CPI (SII) | December 2011 has the monthly change as `0.6` (with a point) and February 1992 as `(-0,6)`. | Reads both; each has a test. |
-| Copper (mindicador.cl) | Its "copper per pound" is not that day's LME price: it matches Cochilco to the cent on only **9%** of days in 2013–2025 and, at the best lag (1–2 days), ~20%, with a 2-cent mean error. | `cochilco.cobre()` returns the official same-day LME price. |
+| Copper (Central Bank and mindicador.cl) | The "copper per pound" the Central Bank publishes (and mindicador copies: identical on 99.7% of days) is not that day's LME price: it matches Cochilco to the cent on only **9%** of days in 2013–2025 and, at the best lag (1–2 days), ~20%, with a 2-cent mean error. | `cochilco.cobre()` returns the official same-day LME price. |
+| IMACEC and unemployment (mindicador.cl) | mindicador keeps the **first published figure** and never revises it: April 2020 IMACEC shows −14.1% while the Central Bank's current figure is −15.1%. Only **3.8%** of months in 2013–2025 match (gaps up to 2.8 points). Unemployment is identical since 2020, but 2013–2019 are figures from before INE's revision (gaps up to 0.55 points). | `bcentral.serie("imacec")` and `bcentral.serie("desempleo")` return the current series; `resumen()` and the dashboard use them. These two do not fall back to mindicador when the Central Bank is down, so vintages are never mixed. |
 | Metals (Cochilco) | Gold and silver stopped updating (London until Nov 2025, COMEX until Mar 2026), with no notice on the page. | `cochilco.precio()` warns when a series has had no data for more than 30 days. |
 | Holidays | Common lists miss 17 and 20 September 2010 (Law 20,450, the Bicentennial); one puts the 2009 election on Friday the 11th when it was Sunday the 13th. Indigenous Peoples' Day falls on the solstice **in Chilean time**: in 2025 it was the 20th although the solstice was on the 21st in UTC. | Computes holidays from the law and checks them against two independent sources (below). |
 | Unit values (pension regulator) | The header saying which AFP sits in each column **changes 31 times** in Fund C's file. Read with a single header, columns silently misalign. | Re-reads the header every time it appears. `indice()` weights each AFP's return by its previous-day assets and, with `real=True`, deflates by the corrected UF. |
@@ -57,9 +59,15 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 
 ## What's inside
 
-**`resumen()`**: one row per indicator (UF, dollar, LME copper, UTM, 12-month inflation, policy rate, IMACEC, unemployment and bank delinquency) with its latest value, the date of the data point, the 12-month change and the source. Each comes from its official source when there is one; if a source is down, that row is left empty with the reason and the rest is returned anyway.
+**`resumen()`**: one row per indicator (UF, dollar, LME copper, UTM, 12-month inflation, policy rate, IMACEC, unemployment and bank delinquency) with its latest value, the date of the data point, the 12-month change and the source. Each comes from its official source (Central Bank, SII, Cochilco, CMF); if a source is down, that row is left empty with the reason and the rest is returned anyway.
 
-**`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series. If mindicador does not respond, the UF and the dollar are fetched from the SII instead (with a `warning`).
+**`bcentral`**: 17 official series from the [Central Bank](https://si3.bcentral.cl/Indicadoressiete/secure/Indicadoresdiarios.aspx), no user or key. Its API requires registration, but the public "Indicadores diarios" page publishes each series' full history; daily series come one year per page and the library requests each year through the same selector the page uses.
+
+| Function | Returns |
+|---|---|
+| `serie(codigo, desde, hasta)` | Daily: `dolar`, `euro`, `uf`, `ivp`, `tpm` (policy rate), `cobre`, `oro`, `plata`, `tcm` (multilateral exchange rate), `euro_por_dolar`, `yen_por_dolar`, from 1997. Monthly: `imacec` (from 1997), `ipc` (from 1928), `desempleo` (from 2010), `utm` (from 1990), `reservas` (from 1982). Quarterly: `pib` (GDP, from 1996). Details and units in `bcentral.SERIES`. |
+
+**`indicadores`**: any series from [mindicador.cl](https://mindicador.cl), which mirrors Central Bank, INE and SII series. If mindicador does not respond, the UF and the dollar are fetched from the SII, and policy rate, CPI, UTM and euro from the Central Bank (with a `warning`). IMACEC and unemployment have no automatic fallback because mindicador's figures are not the current ones (see above): use `bcentral.serie()` for those two.
 
 | Function | Returns |
 |---|---|
@@ -115,6 +123,7 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 
 ```bash
 datoschile resumen
+datoschile bcentral imacec --desde 2015 -o imacec.csv
 datoschile uf --desde 2020 -o uf.csv
 datoschile metal cobre --desde 2024 --bolsa COMEX
 datoschile utm-ipc --desde 2010 -o cpi.csv
@@ -137,6 +146,7 @@ Offline tests run on every change (Python 3.10 to 3.13). Two of them check the h
 Another set downloads real data and checks known values. It runs **every week** on GitHub Actions, to find out a source changed its format before a user does:
 
 - UF on 2008-12-31 = 21,452.57, the value published by the SII; the 2014 dollar leak is detected and fixed.
+- Central Bank: policy rate on 2024-01-02 = 8.25%; April 2020 IMACEC below −10%; 1996 GDP in four quarters; dollar on 2014-01-02 = 524.61, the same value as the SII.
 - LME copper on 2025-01-02 = 3.9397 US$/lb at Cochilco, and base metals are still current.
 - UTM in January 2025 = $67,429; all four CPI base changes are detected, and chain-linked 12-month inflation for January 2025 is the one the SII publishes (4.9%).
 - Fund A falls between 20% and 45% in 2008; system delinquency in February 2020 is 2.04%.
@@ -156,7 +166,8 @@ With the full history, the library reproduces the figures of the projects it cam
 
 ## Sources and caveats
 
-- **mindicador.cl** is a third-party aggregator, not the official publisher, and it goes down: in October 2026 it returned 500 errors for several days. The UF and the dollar fall back to the SII automatically; policy rate, IMACEC and unemployment do not, and for regulatory use they should be checked against the [Central Bank](https://si3.bcentral.cl/siete).
+- **mindicador.cl** is a third-party aggregator, not the official publisher, and it goes down: in October 2026 it returned 500 errors for several days. The UF and the dollar fall back to the SII automatically, and policy rate, CPI, UTM and euro to the Central Bank. For IMACEC and unemployment, use `bcentral.serie()` directly.
+- **Central Bank**: [Indicadores diarios](https://si3.bcentral.cl/Indicadoressiete/secure/Indicadoresdiarios.aspx). The pages carry an opaque parameter that the library reads from the index each session; if the Central Bank changes the layout, the weekly test catches it.
 - **SII**: [UF](https://www.sii.cl/valores_y_fechas/uf/uf2026.htm), [dollar](https://www.sii.cl/valores_y_fechas/dolar/dolar2026.htm) and [UTM, UTA and CPI](https://www.sii.cl/valores_y_fechas/utm/utm2026.htm). The current month's dollar table is sometimes loaded days late; `resumen()` takes the dollar from mindicador and falls back to the SII only if mindicador is down.
 - **Cochilco**: [metal price bulletin](https://boletin.cochilco.cl/estadisticas/grafico.asp).
 - **Pension regulator**: [unit values and assets](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). The series includes weekends with nearly flat values; for volatility models, keep business days only.

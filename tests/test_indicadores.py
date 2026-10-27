@@ -65,3 +65,31 @@ def test_serie_filtra_rango_y_usa_cache(monkeypatch):
 def test_codigo_desconocido():
     with pytest.raises(ValueError, match="Serie desconocida"):
         indicadores.serie("peso_argentino")
+
+
+def test_respaldo_en_el_banco_central_cuando_mindicador_cae(monkeypatch):
+    import warnings
+
+    from datoschile import bcentral
+
+    def caido(*a, **k):
+        raise ConnectionError("500")
+
+    monkeypatch.setattr(indicadores._red, "descargar", caido)
+    monkeypatch.setattr(indicadores, "_mindicador_caido", False)
+    monkeypatch.setattr(bcentral, "descargar_anio", lambda codigo, anio, cache=True: [{"fecha": f"{anio}-01-02", "valor": 8.25}])
+    with warnings.catch_warnings(record=True) as avisos:
+        warnings.simplefilter("always")
+        filas = indicadores.descargar_anio("tpm", 2024, cache=False)
+    assert filas == [{"fecha": "2024-01-02", "valor": 8.25}]
+    assert any("Banco Central" in str(a.message) for a in avisos)
+
+
+def test_imacec_no_cae_al_banco_central(monkeypatch):
+    def caido(*a, **k):
+        raise ConnectionError("500")
+
+    monkeypatch.setattr(indicadores._red, "descargar", caido)
+    monkeypatch.setattr(indicadores, "_mindicador_caido", False)
+    with pytest.raises(ConnectionError):
+        indicadores.descargar_anio("imacec", 2024, cache=False)

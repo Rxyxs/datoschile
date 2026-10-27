@@ -10,7 +10,7 @@ from datetime import date
 
 import pandas as pd
 
-from . import cmf, cochilco, indicadores, sii
+from . import bcentral, cmf, cochilco, indicadores, sii
 
 COLUMNAS = ["indicador", "valor", "unidad", "fecha", "var_12m", "fuente"]
 
@@ -39,9 +39,11 @@ def resumen(cache: bool = True) -> pd.DataFrame:
     """Una fila por indicador: ``indicador``, ``valor``, ``unidad``, ``fecha`` del dato,
     ``var_12m`` (% para precios y niveles; puntos porcentuales para tasas) y ``fuente``.
 
-    Cada indicador sale de su fuente oficial cuando la hay (SII, Cochilco, CMF). TPM,
-    IMACEC y desempleo vienen de mindicador; si no responde, esas filas quedan vacías con el
-    motivo en ``fuente`` y el resto del panel se entrega igual.
+    Cada indicador sale de su fuente oficial: Banco Central (dólar, TPM, IMACEC, desempleo),
+    SII (UF, UTM, IPC), Cochilco (cobre) y CMF (morosidad). Si el Banco Central no responde,
+    el dólar y la TPM se piden a mindicador; si tampoco, la fila queda vacía con el motivo en
+    ``fuente`` y el resto del panel se entrega igual. IMACEC y desempleo no caen a mindicador
+    porque allí son versiones antiguas, sin las revisiones posteriores.
     """
     hace_dos_anios = date(date.today().year - 2, 1, 1)
     filas = []
@@ -54,10 +56,23 @@ def resumen(cache: bool = True) -> pd.DataFrame:
             filas.append([indicador, float("nan"), unidad, pd.NaT, float("nan"), f"{fuente} (no disponible: {e})"])
 
     agregar("UF", "pesos", "SII", lambda: _diaria_sii("uf", hace_dos_anios, cache))
-    # El SII carga el dólar del mes con atraso; mindicador lo tiene al día y, si no responde,
-    # indicadores.dolar() cae solo al SII.
-    agregar("Dólar observado", "pesos", "Banco Central vía mindicador o SII",
-            lambda: indicadores.dolar(desde=hace_dos_anios.year, cache=cache).set_index("fecha")["dolar"])
+    caido = None  # si el Banco Central no responde, no se espera el timeout en cada serie
+
+    def oficial(codigo, respaldo=None):
+        """Serie del Banco Central; si no responde, la de mindicador (cuando es la misma cifra)."""
+        nonlocal caido
+        if not caido:
+            try:
+                return bcentral.serie(codigo, desde=hace_dos_anios.year, cache=cache).set_index("fecha")[codigo]
+            except (ConnectionError, ValueError) as e:
+                caido = f"Banco Central no respondió: {e}"
+        if respaldo is None:
+            raise ConnectionError(caido)
+        return respaldo()
+
+    # El SII carga el dólar del mes con atraso; el Banco Central lo tiene al día.
+    agregar("Dólar observado", "pesos", "Banco Central", lambda: oficial("dolar", lambda: indicadores.dolar(
+        desde=hace_dos_anios.year, cache=cache).set_index("fecha")["dolar"]))
     agregar("Cobre (LME)", "dólares por libra", "Cochilco",
             lambda: cochilco.cobre(desde=hace_dos_anios.year, cache=cache).set_index("fecha")["cobre"])
 
@@ -72,21 +87,10 @@ def resumen(cache: bool = True) -> pd.DataFrame:
     agregar("Inflación (IPC, 12 meses)", "%", "INE vía SII", lambda: (
         ipc["ipc_empalmado"] / ipc["ipc_empalmado"].shift(12) * 100 - 100), relativa=False)
 
-    caido = None  # si mindicador no responde, no se espera el timeout tres veces
-
-    def de_mindicador(codigo):
-        nonlocal caido
-        if caido:
-            raise ConnectionError(caido)
-        try:
-            return indicadores.serie(codigo, desde=hace_dos_anios.year, cache=cache).set_index("fecha")[codigo]
-        except ConnectionError as e:
-            caido = "mindicador no respondió"
-            raise ConnectionError(caido) from e
-
-    for codigo, nombre in (("tpm", "Tasa de política monetaria"), ("imacec", "IMACEC (variación anual)"),
-                           ("tasa_desempleo", "Desempleo (trimestre móvil)")):
-        agregar(nombre, "%", "Banco Central / INE vía mindicador", lambda c=codigo: de_mindicador(c), relativa=False)
+    agregar("Tasa de política monetaria", "%", "Banco Central", lambda: oficial("tpm", lambda: indicadores.serie(
+        "tpm", desde=hace_dos_anios.year, cache=cache).set_index("fecha")["tpm"]), relativa=False)
+    agregar("IMACEC (variación anual)", "%", "Banco Central", lambda: oficial("imacec"), relativa=False)
+    agregar("Desempleo (trimestre móvil)", "%", "INE vía Banco Central", lambda: oficial("desempleo"), relativa=False)
 
     def morosidad():
         df = cmf.morosidad(desde=f"{hace_dos_anios.year}-01", solo_sistema=True, cache=cache)

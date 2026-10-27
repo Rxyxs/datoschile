@@ -73,3 +73,14 @@ def test_utm_ipc_real_y_empalme():
     e = df.set_index("fecha")["ipc_empalmado"]
     # El SII publica 4,9% de inflación a 12 meses en enero de 2025, a través del cambio de base.
     assert (e["2025-01-01"] / e["2024-01-01"] - 1) * 100 == pytest.approx(4.9, abs=0.1)
+
+
+def test_bcentral_series_reales():
+    tpm = dc.bcentral.serie("tpm", desde="2024-01-02", hasta="2024-01-02")
+    assert tpm["tpm"].tolist() == [8.25]
+    imacec = dc.bcentral.serie("imacec", desde="2020-04", hasta="2020-04")
+    assert imacec["imacec"].iloc[0] < -10            # el peor mes de la pandemia
+    pib = dc.bcentral.serie("pib", desde=1996, hasta=1996)
+    assert len(pib) == 4 and pib["pib"].iloc[0] == pytest.approx(20265, rel=0.05)
+    dolar = dc.bcentral.serie("dolar", desde="2014-01-02", hasta="2014-01-02")
+    assert dolar["dolar"].iloc[0] == pytest.approx(524.61, abs=0.01)   # el mismo valor del SII
