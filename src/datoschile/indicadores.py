@@ -18,7 +18,7 @@ import warnings
 
 import pandas as pd
 
-from . import _red, sii
+from . import _red, bcentral, sii
 from ._fechas import es_periodo_cerrado, rango
 
 URL = "https://mindicador.cl/api/{codigo}/{anio}"
@@ -54,13 +54,30 @@ def _validar_codigo(codigo: str) -> None:
 #: año (con mindicador caído, una serie desde 2010 tardaba más de media hora en caer al SII).
 _mindicador_caido = False
 
+#: Series de mindicador con respaldo en el Banco Central: las que coinciden valor a valor con
+#: la fuente oficial (ver README). IMACEC y desempleo no: mindicador conserva cifras antiguas,
+#: sin las revisiones posteriores, y mezclarlas con las vigentes daría una serie incoherente.
+RESPALDO_BCENTRAL = {"tpm": "tpm", "ipc": "ipc", "utm": "utm", "euro": "euro"}
+
+
+def _respaldo(codigo: str, anio: int, cache: bool) -> list[dict]:
+    """La UF y el dólar se piden al SII; las series de RESPALDO_BCENTRAL, al Banco Central."""
+    if codigo in sii.URLS:
+        return sii.descargar_anio(codigo, anio, cache=cache)
+    destino = RESPALDO_BCENTRAL[codigo]
+    if bcentral.SERIES[destino][3] == "diaria":
+        return bcentral.descargar_anio(destino, anio, cache=cache)
+    df = bcentral.serie(destino, desde=anio, hasta=anio, cache=cache)
+    return [{"fecha": str(f.date()), "valor": float(v)} for f, v in zip(df["fecha"], df[destino])]
+
 
 def descargar_anio(codigo: str, anio: int, cache: bool = True) -> list[dict]:
     """Observaciones crudas de un año, tal como las entrega la API (sin limpiar)."""
     global _mindicador_caido
     _validar_codigo(codigo)
-    if _mindicador_caido and codigo in sii.URLS:
-        return sii.descargar_anio(codigo, anio, cache=cache)
+    con_respaldo = codigo in sii.URLS or codigo in RESPALDO_BCENTRAL
+    if _mindicador_caido and con_respaldo:
+        return _respaldo(codigo, anio, cache)
     try:
         contenido = _red.con_cache(
             f"mindicador/{codigo}/{anio}.json",
@@ -69,12 +86,14 @@ def descargar_anio(codigo: str, anio: int, cache: bool = True) -> list[dict]:
         )
     except ConnectionError as e:
         # mindicador es un agregador de terceros y se cae; la UF y el dólar tienen una
-        # fuente oficial alternativa en el SII, con los mismos valores día a día.
-        if codigo not in sii.URLS:
+        # fuente oficial alternativa en el SII, y TPM, IPC, UTM y euro en el Banco
+        # Central, con los mismos valores día a día.
+        if not con_respaldo:
             raise
         _mindicador_caido = True
-        warnings.warn(f"mindicador no respondió ({e}); se usa el SII para {codigo} {anio}.", stacklevel=2)
-        return sii.descargar_anio(codigo, anio, cache=cache)
+        fuente = "el SII" if codigo in sii.URLS else "el Banco Central"
+        warnings.warn(f"mindicador no respondió ({e}); se usa {fuente} para {codigo} {anio}.", stacklevel=2)
+        return _respaldo(codigo, anio, cache)
     serie = json.loads(contenido).get("serie") or []
     # La API entrega la fecha como timestamp UTC de la medianoche chilena (T03:00Z o T04:00Z);
     # los primeros 10 caracteres son el día chileno.
@@ -198,9 +217,9 @@ def dolar(desde=None, hasta=None, cache: bool = True) -> pd.DataFrame:
 def cobre(desde=None, hasta=None, cache: bool = True) -> pd.DataFrame:
     """Precio de la libra de cobre (dólares) según mindicador, días hábiles.
 
-    Ojo: no es el precio LME de ese día. Contra el LME que publica Cochilco coincide al
-    centavo solo en el 9% de los días entre 2013 y 2025, y en el mejor de los desfases
-    (1 a 2 días) en ~20%, con un error medio de 2 centavos. Para análisis diario conviene
-    :func:`datoschile.cochilco.cobre`.
+    Es la serie del Banco Central (idéntica el 99,7% de los días), y no es el precio LME de
+    ese día: contra el LME que publica Cochilco coincide al centavo solo en el 9% de los días
+    entre 2013 y 2025, y en el mejor de los desfases (1 a 2 días) en ~20%, con un error medio
+    de 2 centavos. Para análisis diario conviene :func:`datoschile.cochilco.cobre`.
     """
     return serie("libra_cobre", desde, hasta, cache)

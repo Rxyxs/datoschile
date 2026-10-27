@@ -64,6 +64,10 @@ section.panel { background: var(--tarjeta); border: 1px solid var(--borde); bord
 .rangos { display: flex; gap: 4px; }
 .rangos button { background: none; border: 1px solid var(--borde); color: var(--texto-2); border-radius: 6px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer; }
 .rangos button[aria-pressed="true"] { background: var(--acento-lavado); border-color: var(--acento); color: var(--texto); }
+.controles { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.mas { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-2); font-size: 13px; }
+.mas select { font: inherit; font-size: 13px; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde);
+  border-radius: 6px; padding: 3px 6px; max-width: 220px; }
 .grafico { position: relative; }
 .grafico svg { width: 100%; display: block; overflow: visible; }
 .eje text { fill: var(--texto-3); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -124,7 +128,8 @@ dc.resumen()</code></pre>
 <section class="panel" aria-labelledby="t-principal">
   <div class="cab">
     <div><h2 id="t-principal"></h2><p id="d-principal"></p></div>
-    <div class="rangos" id="rangos-principal" role="group" aria-label="Rango de tiempo"></div>
+    <div class="controles"><label class="mas">Más series <select id="otras"></select></label>
+    <div class="rangos" id="rangos-principal" role="group" aria-label="Rango de tiempo"></div></div>
   </div>
   <div class="grafico" id="g-principal"></div>
 </section>
@@ -177,7 +182,10 @@ const fmt = (v, d) => nf(d).format(v).replace("-", "−");
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const DIA = 86400000;
 const aFecha = (n) => new Date(n * DIA);
-const fechaLarga = (n, mensual) => { const d = aFecha(n); return mensual ? `${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}` : `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+// mensual: true -> "sep 2026"; "T" (trimestral) -> "3T 2026"; si no, la fecha completa.
+const fechaLarga = (n, mensual) => { const d = aFecha(n);
+  if (mensual === "T") return `${Math.floor(d.getUTCMonth() / 3) + 1}T ${d.getUTCFullYear()}`;
+  return mensual ? `${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}` : `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
 const svgNS = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, padre) => { const e = document.createElementNS(svgNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (padre) padre.appendChild(e); return e; };
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -294,11 +302,23 @@ DATOS.tarjetas.forEach(id => {
   b.innerHTML = `<span class="et">${s.nombre}</span><span class="val">${valorTexto(s, u[1])}</span>
     <span class="del"><span>${variacion12(s)}</span><span>${s.fuente_corta} · ${fechaLarga(u[0], s.mensual)}</span></span>`;
   const sv = el("svg", { "aria-hidden": "true" }); b.appendChild(sv); sparkline(sv, s.puntos);
-  b.onclick = () => { actual = id; kpis.querySelectorAll(".kpi").forEach(k => k.setAttribute("aria-pressed", k === b)); dibujarPrincipal(); };
+  b.onclick = () => elegir(id);
   kpis.appendChild(b);
 });
 
 function recorte(puntos, dias) { if (!isFinite(dias)) return puntos; const desde = puntos[puntos.length - 1][0] - dias; return puntos.filter(p => p[0] >= desde); }
+
+// "Más series": todas las que se pueden graficar, también las que no tienen tarjeta.
+const otras = document.getElementById("otras");
+DATOS.series.filter(s => !s.oculto && !s.id.startsWith("fondo_")).forEach(s => {
+  const o = document.createElement("option"); o.value = s.id; o.textContent = s.nombre; otras.appendChild(o); });
+otras.value = actual;
+otras.onchange = () => elegir(otras.value);
+function elegir(id) {
+  actual = id; otras.value = id;
+  kpis.querySelectorAll(".kpi").forEach(k => k.setAttribute("aria-pressed", k.dataset.id === id));
+  dibujarPrincipal();
+}
 
 function dibujarPrincipal() {
   const s = S[actual];

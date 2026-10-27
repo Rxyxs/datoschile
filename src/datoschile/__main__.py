@@ -6,6 +6,7 @@
     python -m datoschile indice --fondos A --desde 2008 --real
     python -m datoschile morosidad --desde 2020-01 --solo-sistema
     python -m datoschile resumen
+    python -m datoschile bcentral imacec --desde 2015
     python -m datoschile metal cobre --desde 2024 --bolsa COMEX
     python -m datoschile utm-ipc --desde 2010
     python -m datoschile feriados --desde 2026 --regionales
@@ -15,7 +16,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import calendario, cmf, cochilco, indicadores, pensiones, sii
+from . import bcentral, calendario, cmf, cochilco, indicadores, pensiones, sii
 from .panel import resumen
 
 
@@ -50,6 +51,9 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("resumen", help="último valor de los indicadores clave")
     r.add_argument("--salida", "-o", help="archivo CSV (por defecto, la pantalla)")
     r.add_argument("--sin-cache", action="store_true", help="no leer ni guardar la caché en disco")
+    bc = sub.add_parser("bcentral", help="serie oficial del Banco Central (TPM, IMACEC, desempleo, PIB...)")
+    bc.add_argument("codigo", choices=sorted(bcentral.SERIES))
+    comun(bc)
     me = sub.add_parser("metal", help="precio diario de un metal (Cochilco)")
     me.add_argument("metal", choices=sorted(cochilco.METALES))
     me.add_argument("--bolsa", help="LME, COMEX, ... (por defecto, la principal del metal)")
@@ -66,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     cache = not getattr(a, "sin_cache", False)
     if a.comando == "resumen":
         df = resumen(cache=cache)
+    elif a.comando == "bcentral":
+        df = bcentral.serie(a.codigo, desde, hasta, cache=cache)
     elif a.comando == "metal":
         df = cochilco.precio(a.metal, desde, hasta, bolsa=a.bolsa, cache=cache)
     elif a.comando == "utm-ipc":
