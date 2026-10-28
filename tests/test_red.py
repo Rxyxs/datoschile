@@ -84,3 +84,11 @@ def test_bcentral_series_reales():
     assert len(pib) == 4 and pib["pib"].iloc[0] == pytest.approx(20265, rel=0.05)
     dolar = dc.bcentral.serie("dolar", desde="2014-01-02", hasta="2014-01-02")
     assert dolar["dolar"].iloc[0] == pytest.approx(524.61, abs=0.01)   # el mismo valor del SII
+
+
+def test_censo_2024_real():
+    c = dc.territorio.poblacion()
+    assert len(c) == 346 and c["poblacion"].sum() == 18_480_432
+    assert c.loc[c["cut"] == 13201, "poblacion"].item() == 568_086   # Puente Alto, la más poblada
+    r = dc.territorio.poblacion("region").set_index("cod_region")
+    assert r.loc[13, "poblacion"] == 7_400_741

@@ -8,7 +8,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**Chilean public data, clean and in a DataFrame, in one line.** UF (Chile's inflation-indexed unit), dollar, euro, UTM, CPI, policy rate, IMACEC, GDP, unemployment and international reserves from the Central Bank, no key needed; daily copper and other metal prices from Cochilco; pension fund unit values; bank delinquency from the CMF, the financial regulator; legal holidays and business days; and conversions between pesos, UF and pesos of another date.
+**Chilean public data, clean and in a DataFrame, in one line.** UF (Chile's inflation-indexed unit), dollar, euro, UTM, CPI, policy rate, IMACEC, GDP, unemployment and international reserves from the Central Bank, no key needed; daily copper and other metal prices from Cochilco; pension fund unit values; bank delinquency from the CMF, the financial regulator; the 346 communes with their CUT code and the 2024 Census; legal holidays and business days; and conversions between pesos, UF and pesos of another date.
 
 [![Dashboard with UF, dollar, copper, inflation, policy rate, IMACEC, unemployment and bank delinquency, downloaded with datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
@@ -24,6 +24,8 @@ dc.cochilco.cobre(desde=2024)                         # same-day LME copper, US$
 dc.sii.utm_ipc(desde=2010)                            # UTM, UTA and chain-linked CPI
 dc.convertir.deflactar(1_000_000, "2015-01-15")       # those pesos, in today's pesos
 dc.calendario.dias_habiles("2026-09-01", "2026-09-30")
+dc.territorio.buscar_cut(["Ñuñoa", "Llay-Llay"])      # [13120, 5703], offline
+dc.territorio.poblacion()                             # 2024 Census by commune
 dc.pensiones.indice(fondos="A", desde=2008, real=True)  # fund index in UF
 dc.cmf.morosidad(desde="2020-01")                     # monthly panel by bank
 ```
@@ -97,6 +99,17 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 | `es_feriado(fecha)`, `es_habil(fecha, bancario)` | With `bancario=True`, 31 December is not a business day either (bank holiday). |
 | `dias_habiles(desde, hasta)`, `sumar_habiles(fecha, n)` | Business days in a range; the date `n` business days after (or before). |
 
+**`territorio`**: regions, provinces and communes (Chile's municipalities) with their CUT code, and the aggregates of INE's [2024 Census](https://censo2024.ine.gob.cl/).
+
+| Function | Returns |
+|---|---|
+| `comunas()`, `regiones()` | The 2024 Census administrative division (346 communes, 56 provinces, 16 regions). Ships with the library: offline. |
+| `buscar_cut(nombres, region)` | The CUT code of each name, tolerating accents, case, hyphens and old spellings ("NUNOA", "Llay-Llay", "Aisén", "Marchigüe"). The CUT code is the key to join data by commune; the name is not. |
+| `poblacion(nivel)` | By commune, province or region: population, sex, mean age and schooling, % aged 0–13, % aged 60+, % immigrants, % indigenous peoples, households, persons per household, dwellings and % overcrowded dwellings. |
+| `censo(nivel)` | The ~190 aggregate variables INE publishes (employment, industry, commuting, housing materials, water, electricity...). |
+
+INE's file comes by census zone and locality; the library sums it by commune and checks that the total is exactly the published census count (18,480,432). Two source details: averages use a decimal comma (`32,8`), and some counts for very small zones are suppressed with `*`. Those are summed as zero and the `celdas_reservadas` column says how many each row has, so those totals are a lower bound. Mean age and schooling are recomputed weighted by population; averaging the zones' averages would be wrong.
+
 **`convertir`**: to compare amounts over time. They take a number and a date, or whole columns.
 
 | Function | Returns |
@@ -128,6 +141,7 @@ datoschile uf --desde 2020 -o uf.csv
 datoschile metal cobre --desde 2024 --bolsa COMEX
 datoschile utm-ipc --desde 2010 -o cpi.csv
 datoschile feriados --desde 2026 --hasta 2027 --regionales
+datoschile censo --nivel region -o census_regions.csv
 datoschile indice --fondos A --desde 2008 --real -o fund_a_real.csv
 datoschile morosidad --desde 2020-01 --solo-sistema
 ```
@@ -149,6 +163,7 @@ Another set downloads real data and checks known values. It runs **every week** 
 - Central Bank: policy rate on 2024-01-02 = 8.25%; April 2020 IMACEC below −10%; 1996 GDP in four quarters; dollar on 2014-01-02 = 524.61, the same value as the SII.
 - LME copper on 2025-01-02 = 3.9397 US$/lb at Cochilco, and base metals are still current.
 - UTM in January 2025 = $67,429; all four CPI base changes are detected, and chain-linked 12-month inflation for January 2025 is the one the SII publishes (4.9%).
+- 2024 Census: 346 communes adding up to 18,480,432 people; Puente Alto 568,086; Metropolitan Region 7,400,741.
 - Fund A falls between 20% and 45% in 2008; system delinquency in February 2020 is 2.04%.
 
 ```bash
@@ -171,6 +186,7 @@ With the full history, the library reproduces the figures of the projects it cam
 - **SII**: [UF](https://www.sii.cl/valores_y_fechas/uf/uf2026.htm), [dollar](https://www.sii.cl/valores_y_fechas/dolar/dolar2026.htm) and [UTM, UTA and CPI](https://www.sii.cl/valores_y_fechas/utm/utm2026.htm). The current month's dollar table is sometimes loaded days late; `resumen()` takes the dollar from mindicador and falls back to the SII only if mindicador is down.
 - **Cochilco**: [metal price bulletin](https://boletin.cochilco.cl/estadisticas/grafico.asp).
 - **Pension regulator**: [unit values and assets](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). The series includes weekends with nearly flat values; for volatility models, keep business days only.
+- **INE, 2024 Census**: [aggregate file by zone and locality](https://storage.googleapis.com/bktdescargascenso2024/Datos_agregados/Base_zona_localidad_CPV24.zip) and variable dictionary, under [INE's open data license](https://www.ine.gob.cl/terminos-de-uso-y-licencia-de-datos-abiertos).
 - **CMF**: [delinquency statistics](https://www.cmfchile.cl/portal/estadisticas/626/w4-propertyvalue-28914.html).
 - **Holidays**: the text of each law at the [National Congress Library](https://www.bcn.cl/leychile). One-off regional holidays (for example, the Pope's visit in 2018) are not included.
 

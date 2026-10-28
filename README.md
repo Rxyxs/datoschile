@@ -8,7 +8,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-lightgrey)
 
-**Datos públicos de Chile, limpios y en un DataFrame, en una línea.** UF, dólar, euro, UTM, IPC, TPM, IMACEC, PIB, desempleo y reservas internacionales desde el Banco Central, sin clave; precios diarios del cobre y otros metales desde Cochilco; valores cuota de las AFP; morosidad bancaria de la CMF; feriados legales y días hábiles; y conversiones entre pesos, UF y pesos de otra fecha.
+**Datos públicos de Chile, limpios y en un DataFrame, en una línea.** UF, dólar, euro, UTM, IPC, TPM, IMACEC, PIB, desempleo y reservas internacionales desde el Banco Central, sin clave; precios diarios del cobre y otros metales desde Cochilco; valores cuota de las AFP; morosidad bancaria de la CMF; las 346 comunas con su código CUT y el Censo 2024; feriados legales y días hábiles; y conversiones entre pesos, UF y pesos de otra fecha.
 
 [![Panel con UF, dólar, cobre, inflación, TPM, IMACEC, desempleo y morosidad bancaria, bajados con datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
@@ -24,6 +24,8 @@ dc.cochilco.cobre(desde=2024)                         # cobre LME del día, US$/
 dc.sii.utm_ipc(desde=2010)                            # UTM, UTA e IPC empalmado
 dc.convertir.deflactar(1_000_000, "2015-01-15")       # esos pesos, en pesos de hoy
 dc.calendario.dias_habiles("2026-09-01", "2026-09-30")
+dc.territorio.buscar_cut(["Ñuñoa", "Llay-Llay"])      # [13120, 5703], sin conexión
+dc.territorio.poblacion()                             # Censo 2024 por comuna
 dc.pensiones.indice(fondos="A", desde=2008, real=True)  # índice del fondo en UF
 dc.cmf.morosidad(desde="2020-01")                     # panel mensual por banco
 ```
@@ -95,6 +97,17 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 | `es_feriado(fecha)`, `es_habil(fecha, bancario)` | Con `bancario=True` el 31 de diciembre tampoco es hábil. |
 | `dias_habiles(desde, hasta)`, `sumar_habiles(fecha, n)` | Días hábiles de un rango; la fecha `n` días hábiles después (o antes). |
 
+**`territorio`**: regiones, provincias y comunas con su código CUT, y los agregados del [Censo 2024](https://censo2024.ine.gob.cl/) del INE.
+
+| Función | Devuelve |
+|---|---|
+| `comunas()`, `regiones()` | La división político-administrativa del Censo 2024 (346 comunas, 56 provincias, 16 regiones). Viene con la librería: sin conexión. |
+| `buscar_cut(nombres, region)` | El código CUT de cada nombre, tolerando tildes, mayúsculas, guiones y grafías antiguas ("NUNOA", "Llay-Llay", "Aisén", "Marchigüe"). El CUT es la llave para cruzar datos por comuna; el nombre no. |
+| `poblacion(nivel)` | Por comuna, provincia o región: población, sexo, edad y escolaridad promedio, % de 0 a 13 años, % de 60 y más, % inmigrantes, % pueblos originarios, hogares, personas por hogar, viviendas y % de viviendas hacinadas. |
+| `censo(nivel)` | Las ~190 variables agregadas que publica el INE (empleo, rama de actividad, transporte, materialidad de la vivienda, agua, electricidad...). |
+
+La base del INE viene por zona y localidad; la librería la suma por comuna y comprueba que el total sea exactamente la población censada publicada (18.480.432). Dos detalles de la fuente: los promedios vienen con coma decimal (`32,8`), y algunos conteos de zonas muy pequeñas vienen reservados con `*`. Esos se suman como cero y la columna `celdas_reservadas` dice cuántos hay en cada fila, así que esos totales son un mínimo. La edad y la escolaridad promedio se recalculan ponderando por población; promediar los promedios de las zonas sería un error.
+
 **`convertir`**: para comparar montos en el tiempo. Aceptan un número y una fecha, o columnas completas.
 
 | Función | Devuelve |
@@ -126,6 +139,7 @@ datoschile uf --desde 2020 -o uf.csv
 datoschile metal cobre --desde 2024 --bolsa COMEX
 datoschile utm-ipc --desde 2010 -o ipc.csv
 datoschile feriados --desde 2026 --hasta 2027 --regionales
+datoschile censo --nivel region -o censo_regiones.csv
 datoschile indice --fondos A --desde 2008 --real -o fondo_a_real.csv
 datoschile morosidad --desde 2020-01 --solo-sistema
 ```
@@ -147,6 +161,7 @@ Otro conjunto descarga datos reales y comprueba valores conocidos. Corre **cada 
 - Banco Central: TPM del 2-1-2024 = 8,25%; IMACEC de abril de 2020 bajo −10%; PIB de 1996 en cuatro trimestres; dólar del 2-1-2014 = 524,61, el mismo valor del SII.
 - Cobre LME del 2-1-2025 = 3,9397 US$/lb en Cochilco, y los metales base siguen al día.
 - UTM de enero de 2025 = $67.429; los cuatro cambios de base del IPC se detectan, y la inflación a 12 meses empalmada de enero de 2025 es la que publica el SII (4,9%).
+- Censo 2024: 346 comunas que suman 18.480.432 personas; Puente Alto 568.086; Región Metropolitana 7.400.741.
 - El fondo A cae entre 20% y 45% en 2008; la morosidad del sistema en febrero de 2020 es 2,04%.
 
 ```bash
@@ -169,6 +184,7 @@ Con todo el historial, la librería reproduce las cifras de los proyectos de don
 - **SII**: [UF](https://www.sii.cl/valores_y_fechas/uf/uf2026.htm), [dólar](https://www.sii.cl/valores_y_fechas/dolar/dolar2026.htm) y [UTM, UTA e IPC](https://www.sii.cl/valores_y_fechas/utm/utm2026.htm). La tabla del dólar del mes en curso a veces se carga con días de atraso; `resumen()` toma el dólar de mindicador y cae al SII solo si mindicador no responde.
 - **Cochilco**: [boletín de precios de metales](https://boletin.cochilco.cl/estadisticas/grafico.asp).
 - **Superintendencia de Pensiones**: [valores cuota y patrimonio](https://www.spensiones.cl/apps/valoresCuotaFondo/vcfAFP.php). La serie incluye fines de semana con valores casi planos; para modelos de volatilidad conviene quedarse con días hábiles.
+- **INE, Censo 2024**: [base agregada por zona y localidad](https://storage.googleapis.com/bktdescargascenso2024/Datos_agregados/Base_zona_localidad_CPV24.zip) y diccionario de variables, [licencia de datos abiertos del INE](https://www.ine.gob.cl/terminos-de-uso-y-licencia-de-datos-abiertos).
 - **CMF**: [estadísticas de morosidad](https://www.cmfchile.cl/portal/estadisticas/626/w4-propertyvalue-28914.html).
 - **Feriados**: el texto de cada ley en la [Biblioteca del Congreso Nacional](https://www.bcn.cl/leychile). Los feriados regionales que se declaran por una sola vez (por ejemplo, la visita del Papa en 2018) no están incluidos.
 

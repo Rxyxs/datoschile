@@ -10,13 +10,14 @@
     python -m datoschile metal cobre --desde 2024 --bolsa COMEX
     python -m datoschile utm-ipc --desde 2010
     python -m datoschile feriados --desde 2026 --regionales
+    python -m datoschile censo --nivel region -o censo_regiones.csv
 """
 from __future__ import annotations
 
 import argparse
 import sys
 
-from . import bcentral, calendario, cmf, cochilco, indicadores, pensiones, sii
+from . import bcentral, calendario, cmf, cochilco, indicadores, pensiones, sii, territorio
 from .panel import resumen
 
 
@@ -59,6 +60,11 @@ def main(argv: list[str] | None = None) -> int:
     me.add_argument("--bolsa", help="LME, COMEX, ... (por defecto, la principal del metal)")
     comun(me)
     comun(sub.add_parser("utm-ipc", help="UTM, UTA e IPC mensual (SII), con el IPC empalmado"))
+    ce = sub.add_parser("censo", help="Censo 2024 por comuna, provincia o región (INE)")
+    ce.add_argument("--nivel", choices=["comuna", "provincia", "region"], default="comuna")
+    ce.add_argument("--completo", action="store_true", help="las ~190 variables, no solo el resumen")
+    ce.add_argument("--salida", "-o", help="archivo CSV (por defecto, la pantalla)")
+    ce.add_argument("--sin-cache", action="store_true", help="no leer ni guardar la caché en disco")
     fe = sub.add_parser("feriados", help="feriados legales (sin conexión)")
     fe.add_argument("--regionales", action="store_true", help="incluir los feriados regionales")
     fe.add_argument("--desde", help="año, AAAA-MM o AAAA-MM-DD")
@@ -76,6 +82,8 @@ def main(argv: list[str] | None = None) -> int:
         df = cochilco.precio(a.metal, desde, hasta, bolsa=a.bolsa, cache=cache)
     elif a.comando == "utm-ipc":
         df = sii.utm_ipc(desde, hasta, cache=cache)
+    elif a.comando == "censo":
+        df = (territorio.censo if a.completo else territorio.poblacion)(a.nivel, cache=cache)
     elif a.comando == "feriados":
         df = calendario.feriados(desde, hasta, regionales=a.regionales)
     elif a.comando == "uf":
