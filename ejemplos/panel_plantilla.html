@@ -106,6 +106,13 @@ td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .res .grande { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .res p { margin: 4px 0 0; color: var(--texto-2); font-size: 13.5px; }
 .res b { color: var(--texto); font-variant-numeric: tabular-nums; }
+.buscar { font: inherit; font-size: 13px; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde);
+  border-radius: 6px; padding: 5px 8px; min-width: 0; }
+.tabla-alta { max-height: 460px; overflow: auto; }
+#tabla-censo th { position: sticky; top: 0; background: var(--tarjeta); cursor: pointer; white-space: nowrap; user-select: none; }
+#tabla-censo th[aria-sort="ascending"]::after { content: " ▲"; } #tabla-censo th[aria-sort="descending"]::after { content: " ▼"; }
+#tabla-censo td.n, #tabla-censo th.n { text-align: right; }
+#c-region { max-width: 240px; }
 footer { color: var(--texto-3); font-size: 13px; margin-top: 28px; }
 </style>
 </head>
@@ -159,6 +166,15 @@ dc.resumen()</code></pre>
     <div class="res" id="c-res" aria-live="polite"></div>
   </section>
 </div>
+
+<section class="panel" aria-labelledby="t-censo" id="censo">
+  <div class="cab"><div><h2 id="t-censo">Censo 2024 por comuna</h2>
+    <p>Las 346 comunas con su código CUT, ordenables por columna. <code>dc.territorio.poblacion()</code></p></div>
+    <div class="controles"><input id="c-buscar" class="buscar" type="search" placeholder="Buscar comuna o CUT" aria-label="Buscar comuna">
+    <select id="c-region" class="buscar" aria-label="Región"><option value="">Todas las regiones</option></select></div></div>
+  <p class="meta" id="c-total"></p>
+  <div class="tablawrap tabla-alta"><table id="tabla-censo"><thead><tr></tr></thead><tbody></tbody></table></div>
+</section>
 
 <section class="panel" aria-labelledby="t-fuentes">
   <div class="cab"><div><h2 id="t-fuentes">Fuentes y último dato</h2><p>De dónde sale cada serie y hasta cuándo llega.</p></div></div>
@@ -375,6 +391,38 @@ document.getElementById("hallazgos").innerHTML = DATOS.hallazgos.map(h => `<div 
   monto.addEventListener("input", () => { const n = monto.value.replace(/[^\d]/g, ""); monto.value = n ? fmt(Number(n), 0) : ""; calcular(); });
   mes.addEventListener("input", calcular);
   calcular();
+})();
+
+// Censo 2024 por comuna: búsqueda, filtro por región y orden por columna
+(function () {
+  const filas = DATOS.comunas || [];
+  const sec = document.getElementById("censo");
+  if (!filas.length) { sec.remove(); return; }
+  const COL = [["CUT", 0, "t"], ["Comuna", 1, "t"], ["Región", 3, "t"], ["Población", 4, 0], ["Edad prom.", 5, 1],
+               ["Escolaridad 18+", 6, 1], ["% 60+", 7, 1], ["% inmigrantes", 8, 1], ["% pueblos orig.", 9, 1],
+               ["Pers./hogar", 10, 2], ["% viv. hacinadas", 11, 1]];
+  const cab = document.querySelector("#tabla-censo thead tr"), cuerpo = document.querySelector("#tabla-censo tbody");
+  const buscar = document.getElementById("c-buscar"), region = document.getElementById("c-region");
+  const sinTilde = (x) => String(x).normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  [...new Map(filas.map(f => [f[2], f[3]]))].sort((a, b) => a[0] - b[0]).forEach(([c, n]) => {
+    const o = document.createElement("option"); o.value = c; o.textContent = n; region.appendChild(o); });
+  let orden = 3, sentido = -1;
+  COL.forEach(([et, k, d], i) => { const th = document.createElement("th"); th.textContent = et; th.tabIndex = 0; if (d !== "t") th.className = "n";
+    th.onclick = th.onkeydown = (ev) => { if (ev.type === "keydown" && ev.key !== "Enter") return;
+      sentido = orden === i ? -sentido : (COL[i][2] === "t" ? 1 : -1); orden = i; pintar(); };
+    cab.appendChild(th); });
+  function pintar() {
+    const q = sinTilde(buscar.value.trim()), r = region.value;
+    const k = COL[orden][1];
+    const vis = filas.filter(f => (!r || String(f[2]) === r) && (!q || sinTilde(f[1]).includes(q) || String(f[0]).startsWith(q)))
+      .sort((a, b) => (a[k] === null) - (b[k] === null) || (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * sentido);
+    cab.querySelectorAll("th").forEach((th, i) => th.setAttribute("aria-sort", i === orden ? (sentido > 0 ? "ascending" : "descending") : "none"));
+    cuerpo.innerHTML = vis.map(f => "<tr>" + COL.map(([, k, d]) => d === "t" ? `<td>${f[k]}</td>`
+      : `<td class="n">${f[k] === null ? "–" : fmt(f[k], d)}</td>`).join("") + "</tr>").join("");
+    const pob = vis.reduce((s, f) => s + f[4], 0);
+    document.getElementById("c-total").textContent = `${vis.length} comunas · ${fmt(pob, 0)} personas`;
+  }
+  buscar.addEventListener("input", pintar); region.addEventListener("change", pintar); pintar();
 })();
 
 function todo() { dibujarPrincipal(); dibujarFondos(); }
