@@ -126,7 +126,20 @@ def construir(series: dict[str, pd.Series]) -> dict:
                f"{meses[sig_ini.month - 1]} {sig_ini.year}, {len(dc.calendario.dias_habiles(sig_ini, sig_fin))}. "
                "dc.calendario.dias_habiles()")
     return {"generado": int((hoy - EPOCA).days), "series": salida, "tarjetas": TARJETAS,
-            "feriados": filas, "habiles": habiles, "hallazgos": HALLAZGOS}
+            "feriados": filas, "habiles": habiles, "hallazgos": HALLAZGOS, "comunas": _comunas()}
+
+
+def _comunas() -> list:
+    """Tabla compacta del Censo 2024 por comuna para la sección territorial del panel."""
+    try:
+        p = dc.territorio.poblacion()
+    except (ConnectionError, ValueError) as e:
+        print(f"[aviso] censo: {e}")
+        return []
+    cols = ["cut", "comuna", "cod_region", "region", "poblacion", "edad_promedio", "escolaridad_promedio_18",
+            "pct_60_mas", "pct_inmigrantes", "pct_pueblos_originarios", "personas_por_hogar", "pct_viviendas_hacinadas"]
+    return [[None if pd.isna(v) else (v.item() if hasattr(v, "item") else v) for v in fila]
+            for fila in p[cols].itertuples(index=False)]
 
 
 def main(series: dict[str, pd.Series] | None = None) -> Path:
