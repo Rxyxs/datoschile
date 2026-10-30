@@ -13,7 +13,7 @@
     >>> dc.pensiones.valor_cuota(fondos="A", desde=2024)
     >>> dc.cmf.morosidad(desde="2020-01")
 """
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from . import bcentral, calendario, cmf, cochilco, convertir, indicadores, pensiones, sii, territorio  # noqa: E402
 from .panel import resumen  # noqa: E402

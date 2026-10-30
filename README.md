@@ -12,7 +12,7 @@
 
 [![Panel con UF, dólar, cobre, inflación, TPM, IMACEC, desempleo y morosidad bancaria, bajados con datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
-**[Abrir el panel interactivo →](https://rxyxs.github.io/datoschile/)** Se reconstruye cada semana con esta misma librería: gráficos con rango de tiempo y detalle al pasar el cursor, los fondos A a E en UF, los próximos feriados y una calculadora de "¿cuánto vale hoy?".
+**[Abrir el panel interactivo →](https://rxyxs.github.io/datoschile/)** Se reconstruye cada semana con esta misma librería: gráficos con rango de tiempo y detalle al pasar el cursor, los fondos A a E en UF, los próximos feriados, una calculadora de "¿cuánto vale hoy?" y un mapa y tabla del Censo 2024 por comuna.
 
 ```python
 import datoschile as dc
@@ -104,9 +104,12 @@ Requiere Python 3.10 o superior. Depende solo de pandas, requests y openpyxl.
 | `comunas()`, `regiones()` | La división político-administrativa del Censo 2024 (346 comunas, 56 provincias, 16 regiones). Viene con la librería: sin conexión. |
 | `buscar_cut(nombres, region)` | El código CUT de cada nombre, tolerando tildes, mayúsculas, guiones y grafías antiguas ("NUNOA", "Llay-Llay", "Aisén", "Marchigüe"). El CUT es la llave para cruzar datos por comuna; el nombre no. |
 | `poblacion(nivel)` | Por comuna, provincia o región: población, sexo, edad y escolaridad promedio, % de 0 a 13 años, % de 60 y más, % inmigrantes, % pueblos originarios, hogares, personas por hogar, viviendas y % de viviendas hacinadas. |
+| `geometria(nivel)`, `limites()` | Los límites oficiales de las comunas del Censo 2024, simplificados (0,9 MB, sin conexión): `GeoDataFrame` por comuna, provincia o región (requiere `pip install datoschile[mapas]`) o GeoJSON sin dependencias. Para un mapa: `geometria().merge(poblacion(), on="cut")`. |
 | `censo(nivel)` | Las ~190 variables agregadas que publica el INE (empleo, rama de actividad, transporte, materialidad de la vivienda, agua, electricidad...). |
 
 La base del INE viene por zona y localidad; la librería la suma por comuna y comprueba que el total sea exactamente la población censada publicada (18.480.432). Dos detalles de la fuente: los promedios vienen con coma decimal (`32,8`), y algunos conteos de zonas muy pequeñas vienen reservados con `*`. Esos se suman como cero y la columna `celdas_reservadas` dice cuántos hay en cada fila, así que esos totales son un mínimo. La edad y la escolaridad promedio se recalculan ponderando por población; promediar los promedios de las zonas sería un error.
+
+Los límites salen de la capa comunal de la cartografía del INE (765 MB repartidos en 16 GeoPackages regionales; [`ejemplos/geometria_comunas.py`](ejemplos/geometria_comunas.py) los reduce). Se simplifican como cobertura, así que las comunas vecinas siguen compartiendo borde sin huecos, y se dejan fuera los islotes de menos de ~2 km²: los fiordos del sur pesaban más que el resto del país junto. La superficie de la Región Metropolitana queda en 15.393 km² (oficial: 15.403). La comuna Antártica no tiene polígono porque el INE no la incluye en su cartografía.
 
 **`convertir`**: para comparar montos en el tiempo. Aceptan un número y una fecha, o columnas completas.
 

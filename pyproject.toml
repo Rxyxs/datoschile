@@ -22,7 +22,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "geopandas>=0.14"]
+mapas = ["geopandas>=0.14"]
 
 [project.urls]
 Homepage = "https://github.com/Rxyxs/datoschile"

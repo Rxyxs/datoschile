@@ -17,6 +17,10 @@ comuna aparece como "Ñuñoa", "NUNOA" o "Nunoa", y algunas tienen grafías anti
     >>> territorio.buscar_cut(["Ñuñoa", "LLAY-LLAY", "santiago centro"])
     >>> territorio.censo()                           # una fila por comuna, ~190 columnas
     >>> territorio.censo(nivel="region")[["region", "n_per", "n_inmigrantes"]]
+    >>> territorio.geometria().merge(territorio.poblacion(), on="cut")   # para mapas
+
+* :func:`limites` y :func:`geometria` traen los límites comunales oficiales del Censo 2024,
+  simplificados y **sin conexión** (``geometria`` requiere ``geopandas``).
 """
 from __future__ import annotations
 
@@ -102,6 +106,40 @@ def buscar_cut(nombres, region=None):
     if faltan and not escalar:
         warnings.warn(f"Sin código CUT para {len(faltan)} nombre(s): {faltan[:5]}", stacklevel=2)
     return salida[0] if escalar else salida
+
+
+@lru_cache(maxsize=1)
+def _geojson_texto() -> str:
+    with resources.files("datoschile").joinpath("datos/comunas_2024.geojson").open(encoding="utf-8") as f:
+        return f.read()
+
+
+def limites() -> dict:
+    """Límites de 345 comunas como GeoJSON (``dict``, EPSG:4326), sin conexión y sin
+    dependencias. Vienen de la cartografía oficial del Censo 2024, simplificados como
+    cobertura (~800 m de tolerancia, sin islotes de menos de ~2 km²: las comunas vecinas
+    comparten borde). Cada
+    elemento trae ``cut`` y ``comuna`` en ``properties``. La comuna Antártica (12202) no está:
+    el INE no la incluye en su cartografía."""
+    import json
+    return json.loads(_geojson_texto())
+
+
+def geometria(nivel: str = "comuna"):
+    """Los mismos límites como ``GeoDataFrame`` por ``"comuna"``, ``"provincia"`` o
+    ``"region"`` (las provincias y regiones se arman uniendo sus comunas). Requiere
+    ``geopandas``. Para un mapa: ``geometria().merge(poblacion(), on="cut")``."""
+    if nivel not in _NIVELES:
+        raise ValueError(f"nivel debe ser uno de {list(_NIVELES)}")
+    try:
+        import geopandas as gpd
+    except ImportError as e:
+        raise ImportError("territorio.geometria() necesita geopandas: pip install geopandas") from e
+    g = gpd.GeoDataFrame.from_features(limites()["features"], crs=4326)[["cut", "geometry"]]
+    g = comunas().merge(g, on="cut", validate="one_to_one").pipe(gpd.GeoDataFrame, crs=4326)
+    if nivel == "comuna":
+        return g[_NIVELES["comuna"] + ["geometry"]]
+    return g.dissolve(_NIVELES[nivel], as_index=False)[_NIVELES[nivel] + ["geometry"]]
 
 
 def _base_zonas(cache: bool = True) -> pd.DataFrame:

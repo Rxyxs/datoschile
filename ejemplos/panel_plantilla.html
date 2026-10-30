@@ -109,6 +109,16 @@ td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .buscar { font: inherit; font-size: 13px; color: var(--texto); background: var(--fondo); border: 1px solid var(--borde);
   border-radius: 6px; padding: 5px 8px; min-width: 0; }
 .tabla-alta { max-height: 460px; overflow: auto; }
+.censo-cuerpo { display: grid; grid-template-columns: minmax(200px, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 760px) { .censo-cuerpo { grid-template-columns: minmax(0, 1fr); } }
+.mapa { position: relative; }
+.mapa svg { display: block; width: 100%; height: 560px; }
+.mapa path { stroke: var(--fondo); stroke-width: .6; vector-effect: non-scaling-stroke; cursor: pointer; }
+.mapa path.sin { fill: var(--rejilla); }
+.mapa path:hover, .mapa path.marcada { stroke: var(--texto); stroke-width: 1.6; }
+.leyenda { display: flex; gap: 2px; margin-top: 8px; font-size: 11px; color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.leyenda span { flex: 1; border-top: 10px solid; padding-top: 3px; }
+.mapa .meta { margin: 6px 0 0; }
 #tabla-censo th { position: sticky; top: 0; background: var(--tarjeta); cursor: pointer; white-space: nowrap; user-select: none; }
 #tabla-censo th[aria-sort="ascending"]::after { content: " ▲"; } #tabla-censo th[aria-sort="descending"]::after { content: " ▼"; }
 #tabla-censo td.n, #tabla-censo th.n { text-align: right; }
@@ -169,11 +179,15 @@ dc.resumen()</code></pre>
 
 <section class="panel" aria-labelledby="t-censo" id="censo">
   <div class="cab"><div><h2 id="t-censo">Censo 2024 por comuna</h2>
-    <p>Las 346 comunas con su código CUT, ordenables por columna. <code>dc.territorio.poblacion()</code></p></div>
+    <p>Las 346 comunas con su código CUT. El mapa pinta la columna por la que ordenes la tabla y se acerca a la región que elijas. <code>dc.territorio.poblacion()</code></p></div>
     <div class="controles"><input id="c-buscar" class="buscar" type="search" placeholder="Buscar comuna o CUT" aria-label="Buscar comuna">
     <select id="c-region" class="buscar" aria-label="Región"><option value="">Todas las regiones</option></select></div></div>
   <p class="meta" id="c-total"></p>
-  <div class="tablawrap tabla-alta"><table id="tabla-censo"><thead><tr></tr></thead><tbody></tbody></table></div>
+  <div class="censo-cuerpo">
+    <div class="mapa" id="c-mapa"><svg role="img" aria-labelledby="c-mapa-t"><title id="c-mapa-t">Mapa de Chile por comuna</title></svg>
+      <div class="leyenda" id="c-leyenda"></div><p class="meta" id="c-mapa-nota"></p></div>
+    <div class="tablawrap tabla-alta"><table id="tabla-censo"><thead><tr></tr></thead><tbody></tbody></table></div>
+  </div>
 </section>
 
 <section class="panel" aria-labelledby="t-fuentes">
@@ -420,7 +434,48 @@ document.getElementById("hallazgos").innerHTML = DATOS.hallazgos.map(h => `<div 
     cuerpo.innerHTML = vis.map(f => "<tr>" + COL.map(([, k, d]) => d === "t" ? `<td>${f[k]}</td>`
       : `<td class="n">${f[k] === null ? "–" : fmt(f[k], d)}</td>`).join("") + "</tr>").join("");
     const pob = vis.reduce((s, f) => s + f[4], 0);
-    document.getElementById("c-total").textContent = `${vis.length} comunas · ${fmt(pob, 0)} personas`;
+    document.getElementById("c-total").textContent = `${vis.length} comuna${vis.length === 1 ? "" : "s"} · ${fmt(pob, 0)} personas`;
+    mapa(vis);
+  }
+  // Mapa: color por quintiles de la columna ordenada (si es texto o población, % inmigrantes); zoom a la región filtrada
+  const svg = document.querySelector("#c-mapa svg"), NS = "http://www.w3.org/2000/svg";
+  const porCut = new Map(filas.map(f => [f[0], f])), trazos = new Map();
+  const tipM = document.createElement("div"); tipM.className = "tip"; document.getElementById("c-mapa").appendChild(tipM);
+  const colorCol = () => COL[orden][2] === "t" || orden === 3 ? 7 : orden;  // población absoluta engaña en un mapa
+  Object.entries(DATOS.mapa || {}).forEach(([cut, d]) => {
+    const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); svg.appendChild(p); trazos.set(+cut, p);
+    p.addEventListener("mousemove", (ev) => {
+      const f = porCut.get(+cut), [et, k, dec] = COL[colorCol()], r = svg.parentNode.getBoundingClientRect();
+      tipM.innerHTML = `<div class="f">${f[1]}</div><div class="fila">${et}: <b>${f[k] === null ? "–" : fmt(f[k], dec)}</b></div>`
+        + `<div class="fila">Población: <b>${fmt(f[4], 0)}</b></div>`;
+      tipM.style.display = "block";
+      const x = ev.clientX - r.left, y = ev.clientY - r.top, w = tipM.offsetWidth;
+      tipM.style.left = Math.max(0, x + 12 + w > r.width ? x - 12 - w : x + 12) + "px"; tipM.style.top = (y + 12) + "px";
+    });
+    p.addEventListener("mouseleave", () => { tipM.style.display = "none"; });
+    p.addEventListener("click", () => { buscar.value = String(cut); pintar(); });
+  });
+  function mapa(vis) {
+    const caja0 = document.getElementById("c-mapa");
+    if (!trazos.size) { if (caja0) caja0.remove(); return; }
+    const [et, k, dec] = COL[colorCol()], visibles = new Set(vis.map(f => f[0]));
+    const base = filas.filter(f => (!region.value || String(f[2]) === region.value) && f[k] !== null).map(f => f[k]).sort((a, b) => a - b);
+    const cortes = [1, 2, 3, 4].map(q => base[Math.floor(q * base.length / 5)]);
+    const tono = (j) => `color-mix(in srgb, var(--acento) ${16 + j * 21}%, var(--rejilla))`;
+    let caja = null;
+    trazos.forEach((p, cut) => {
+      const f = porCut.get(cut), enRegion = !region.value || String(f[2]) === region.value;
+      p.style.display = enRegion ? "" : "none";
+      p.classList.toggle("marcada", enRegion && visibles.has(cut) && visibles.size < 20);
+      p.classList.toggle("sin", f[k] === null);
+      p.style.fill = f[k] === null ? "" : tono(cortes.filter(c => f[k] >= c).length);
+      if (enRegion) { const b = p.getBBox(); caja = caja ? [Math.min(caja[0], b.x), Math.min(caja[1], b.y), Math.max(caja[2], b.x + b.width), Math.max(caja[3], b.y + b.height)] : [b.x, b.y, b.x + b.width, b.y + b.height]; }
+    });
+    if (caja) { const m = Math.max(caja[2] - caja[0], caja[3] - caja[1]) * 0.02;
+      svg.setAttribute("viewBox", [caja[0] - m, caja[1] - m, caja[2] - caja[0] + 2 * m, caja[3] - caja[1] + 2 * m].join(" ")); }
+    const lim = [base[0], ...cortes];
+    document.getElementById("c-leyenda").innerHTML = [0, 1, 2, 3, 4].map(j => `<span style="border-color:${tono(j)}">${fmt(lim[j], dec)}+</span>`).join("");
+    document.getElementById("c-mapa-nota").textContent = `${et} por quintiles. Sin Antártica, Rapa Nui ni Juan Fernández.`;
   }
   buscar.addEventListener("input", pintar); region.addEventListener("change", pintar); pintar();
 })();
