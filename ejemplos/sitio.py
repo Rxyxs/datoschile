@@ -7,6 +7,7 @@ Lo corre cada semana el workflow ``panel`` y lo publica en GitHub Pages.
 from __future__ import annotations
 
 import json
+import math
 import sys
 from datetime import date
 from pathlib import Path
@@ -126,7 +127,7 @@ def construir(series: dict[str, pd.Series]) -> dict:
                f"{meses[sig_ini.month - 1]} {sig_ini.year}, {len(dc.calendario.dias_habiles(sig_ini, sig_fin))}. "
                "dc.calendario.dias_habiles()")
     return {"generado": int((hoy - EPOCA).days), "series": salida, "tarjetas": TARJETAS,
-            "feriados": filas, "habiles": habiles, "hallazgos": HALLAZGOS, "comunas": _comunas()}
+            "feriados": filas, "habiles": habiles, "hallazgos": HALLAZGOS, "comunas": _comunas(), "mapa": _mapa()}
 
 
 def _comunas() -> list:
@@ -140,6 +141,25 @@ def _comunas() -> list:
             "pct_60_mas", "pct_inmigrantes", "pct_pueblos_originarios", "personas_por_hogar", "pct_viviendas_hacinadas"]
     return [[None if pd.isna(v) else (v.item() if hasattr(v, "item") else v) for v in fila]
             for fila in p[cols].itertuples(index=False)]
+
+
+def _mapa() -> dict:
+    """Trazos SVG de cada comuna (proyección sinusoidal centrada en 71° O, en centésimas de
+    grado), sin las islas oceánicas: Rapa Nui y Juan Fernández alargarían el mapa al triple."""
+    trazos = {}
+    for f in dc.territorio.limites()["features"]:
+        g = f["geometry"]
+        partes = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+        d = []
+        for poligono in partes:
+            if poligono[0][0][0] < -76:
+                continue
+            for anillo in poligono:
+                pts = [(round((lon + 71) * math.cos(math.radians(lat)) * 100), round(-lat * 100)) for lon, lat in anillo]
+                d.append("M" + "L".join(f"{x} {y}" for x, y in pts) + "Z")
+        if d:
+            trazos[f["properties"]["cut"]] = "".join(d)
+    return trazos
 
 
 def main(series: dict[str, pd.Series] | None = None) -> Path:

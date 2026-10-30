@@ -12,7 +12,7 @@
 
 [![Dashboard with UF, dollar, copper, inflation, policy rate, IMACEC, unemployment and bank delinquency, downloaded with datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
-**[Open the interactive dashboard →](https://rxyxs.github.io/datoschile/)** (in Spanish). It is rebuilt every week with this same library: charts with time ranges and hover detail, pension funds A to E in UF, upcoming holidays and a "what is it worth today?" calculator.
+**[Open the interactive dashboard →](https://rxyxs.github.io/datoschile/)** (in Spanish). It is rebuilt every week with this same library: charts with time ranges and hover detail, pension funds A to E in UF, upcoming holidays, a "what is it worth today?" calculator and a map and table of the 2024 Census by commune.
 
 ```python
 import datoschile as dc
@@ -106,9 +106,12 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 | `comunas()`, `regiones()` | The 2024 Census administrative division (346 communes, 56 provinces, 16 regions). Ships with the library: offline. |
 | `buscar_cut(nombres, region)` | The CUT code of each name, tolerating accents, case, hyphens and old spellings ("NUNOA", "Llay-Llay", "Aisén", "Marchigüe"). The CUT code is the key to join data by commune; the name is not. |
 | `poblacion(nivel)` | By commune, province or region: population, sex, mean age and schooling, % aged 0–13, % aged 60+, % immigrants, % indigenous peoples, households, persons per household, dwellings and % overcrowded dwellings. |
+| `geometria(nivel)`, `limites()` | The official 2024 Census commune boundaries, simplified (0.9 MB, offline): a `GeoDataFrame` by commune, province or region (needs `pip install datoschile[mapas]`) or dependency-free GeoJSON. For a map: `geometria().merge(poblacion(), on="cut")`. |
 | `censo(nivel)` | The ~190 aggregate variables INE publishes (employment, industry, commuting, housing materials, water, electricity...). |
 
 INE's file comes by census zone and locality; the library sums it by commune and checks that the total is exactly the published census count (18,480,432). Two source details: averages use a decimal comma (`32,8`), and some counts for very small zones are suppressed with `*`. Those are summed as zero and the `celdas_reservadas` column says how many each row has, so those totals are a lower bound. Mean age and schooling are recomputed weighted by population; averaging the zones' averages would be wrong.
+
+Boundaries come from the commune layer of INE's cartography (765 MB across 16 regional GeoPackages; [`ejemplos/geometria_comunas.py`](ejemplos/geometria_comunas.py) reduces them). They are simplified as a coverage, so neighbouring communes still share borders with no gaps, and islets under ~2 km² are dropped: the southern fjords weighed more than the rest of the country together. The Metropolitan Region comes out at 15,393 km² (official: 15,403). The Antártica commune has no polygon because INE leaves it out of its cartography.
 
 **`convertir`**: to compare amounts over time. They take a number and a date, or whole columns.
 

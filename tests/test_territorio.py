@@ -72,3 +72,19 @@ def test_censo_por_region_y_validacion_del_total(censo_falso, monkeypatch):
         territorio.censo(cache=False)
     with pytest.raises(ValueError, match="nivel"):
         territorio.censo("barrio")
+
+
+def test_limites_sin_conexion():
+    g = territorio.limites()
+    cuts = {f["properties"]["cut"] for f in g["features"]}
+    assert len(cuts) == 345 and 12202 not in cuts  # el INE no dibuja la comuna Antártica
+    assert cuts <= set(territorio.comunas()["cut"])
+    assert {f["geometry"]["type"] for f in g["features"]} <= {"Polygon", "MultiPolygon"}
+
+
+def test_geometria_por_region():
+    pytest.importorskip("geopandas")
+    r = territorio.geometria("region")
+    assert len(r) == 16 and r.crs.to_epsg() == 4326
+    km2 = r.to_crs(32719).set_index("cod_region").area / 1e6
+    assert abs(km2[13] - 15_403) / 15_403 < 0.01  # superficie oficial de la Región Metropolitana
