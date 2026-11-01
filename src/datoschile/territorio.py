@@ -21,6 +21,8 @@ comuna aparece como "Ñuñoa", "NUNOA" o "Nunoa", y algunas tienen grafías anti
 
 * :func:`limites` y :func:`geometria` traen los límites comunales oficiales del Censo 2024,
   simplificados y **sin conexión** (``geometria`` requiere ``geopandas``).
+* :func:`pobreza` trae la pobreza por ingresos y multidimensional 2024 de cada comuna
+  (estimaciones para áreas pequeñas del Ministerio de Desarrollo Social), con intervalo.
 """
 from __future__ import annotations
 
@@ -195,6 +197,55 @@ def censo(nivel: str = "comuna", cache: bool = True) -> pd.DataFrame:
     out[num] = out[num].astype("int64")
     return out[claves + ["n_per", "prom_edad", "prom_escolaridad18", "prom_per_hog"]
                + [c for c in num if c != "n_per"]].reset_index(drop=True)
+
+
+URL_SAE = "https://observatorio.ministeriodesarrollosocial.gob.cl/storage/docs/pobreza-comunal/2024/"
+_SAE = {"ingresos": "SAE_ingresos_2024.xlsx", "multidimensional": "SAE_multidimensional_2024.xlsx"}
+
+
+def _sae(tipo: str, cache: bool) -> pd.DataFrame:
+    archivo = _SAE[tipo]
+    contenido = _red.con_cache(f"pobreza2024/{archivo}", lambda: _red.descargar(URL_SAE + archivo), usar_cache=cache)
+    d = pd.read_excel(io.BytesIO(contenido), header=None)
+    cab = d.index[d[0].astype(str).str.strip().str.lower().str.startswith("código")]
+    if len(cab) != 1 or not str(d.iloc[cab[0], 5]).lower().startswith("porcentaje"):
+        raise ValueError(f"{archivo}: cambió el formato (no encuentro la cabecera 'Código ... Porcentaje')")
+    d = d.iloc[cab[0] + 1:]
+    d = d[pd.to_numeric(d[0], errors="coerce").notna()]  # fuera las notas al pie
+    out = pd.DataFrame({"cut": d[0].astype("int64").values})
+    out[f"pct_pobreza_{tipo}"] = (d[5].astype(float).values * 100).round(2)
+    out[f"pct_pobreza_{tipo}_min"] = (d[6].astype(float).values * 100).round(2)
+    out[f"pct_pobreza_{tipo}_max"] = (d[7].astype(float).values * 100).round(2)
+    if tipo == "ingresos":
+        out["poblacion_proyectada"] = d[3].astype("int64").values
+        out["en_muestra_casen"] = d[8].astype(str).str.strip().str.lower().str.startswith("s").values
+        out["estimacion"] = d[9].astype(str).str.strip().values
+    return out
+
+
+def pobreza(cache: bool = True) -> pd.DataFrame:
+    """Pobreza por ingresos y multidimensional 2024 por comuna, con su intervalo de confianza.
+
+    Son las estimaciones oficiales para áreas pequeñas (SAE) del Ministerio de Desarrollo
+    Social: Casen no alcanza para medir cada comuna, así que el ministerio combina la
+    estimación directa con un modelo (Fay-Herriot), o usa solo el modelo en las comunas
+    fuera de la muestra (``estimacion == "Sintética"``). Por eso cada tasa trae
+    ``_min`` y ``_max``: en comunas chicas el intervalo puede ser de más de 10 puntos.
+
+    La pobreza por ingresos usa la metodología 2024 (nueva canasta y línea): no se compara
+    con las cifras de 2022 o anteriores. La comuna Antártica no tiene estimación.
+    Porcentajes de 0 a 100.
+    """
+    out = _sae("ingresos", cache).merge(_sae("multidimensional", cache), on="cut", how="outer",
+                                        validate="one_to_one")
+    desconocidas = set(out["cut"]) - set(_dpa()["cut"])
+    if desconocidas:
+        raise ValueError(f"Códigos CUT que no están en la DPA: {sorted(desconocidas)[:5]}")
+    out = comunas()[["cut", "comuna", "cod_region", "region"]].merge(out, on="cut", how="inner")
+    return out[["cut", "comuna", "cod_region", "region", "poblacion_proyectada",
+                "pct_pobreza_ingresos", "pct_pobreza_ingresos_min", "pct_pobreza_ingresos_max",
+                "pct_pobreza_multidimensional", "pct_pobreza_multidimensional_min",
+                "pct_pobreza_multidimensional_max", "en_muestra_casen", "estimacion"]]
 
 
 def poblacion(nivel: str = "comuna", cache: bool = True) -> pd.DataFrame:

@@ -88,3 +88,32 @@ def test_geometria_por_region():
     assert len(r) == 16 and r.crs.to_epsg() == 4326
     km2 = r.to_crs(32719).set_index("cod_region").area / 1e6
     assert abs(km2[13] - 15_403) / 15_403 < 0.01  # superficie oficial de la Región Metropolitana
+
+
+def _xlsx_sae(filas, titulo="Porcentaje de personas en situacion de pobreza 2024"):
+    import pandas as pd
+    cab = ["Código", "Región", "Nombre comuna", "Número de personas", "Número de personas en pobreza",
+           titulo, "Límite inferior", "Límite superior", "Presencia de la comuna en la muestra Casen",
+           "Tipo de estimación SAE"]
+    d = pd.DataFrame([["Estimaciones SAE 2024"] + [None] * 9, [None] * 10, cab] + filas
+                     + [[None] * 10, ["(*) Nota al pie"] + [None] * 9])
+    buf = io.BytesIO()
+    d.to_excel(buf, header=False, index=False)
+    return buf.getvalue()
+
+
+def test_pobreza_lee_sae_y_descarta_notas(monkeypatch):
+    filas = [[13101, "RM", "Santiago", 500000, 50000, 0.10, 0.08, 0.12, "Sí", "Directa y Sintética (Fay-Herriot)"],
+             [1402, "Tarapacá", "Camiña", 1200, 500, 0.4366, 0.3445, 0.5286, "No", "Sintética"]]
+    monkeypatch.setattr(territorio._red, "descargar", lambda url: _xlsx_sae(filas))
+    p = territorio.pobreza(cache=False).set_index("cut")
+    assert list(p.index) == [1402, 13101]
+    assert p.loc[13101, "pct_pobreza_ingresos"] == 10.0 and p.loc[1402, "pct_pobreza_multidimensional_max"] == 52.86
+    assert not p.loc[1402, "en_muestra_casen"] and p.loc[1402, "estimacion"] == "Sintética"
+    assert p.loc[13101, "comuna"] == "SANTIAGO"   # nombre oficial de la DPA
+
+
+def test_pobreza_detecta_cambio_de_formato(monkeypatch):
+    monkeypatch.setattr(territorio._red, "descargar", lambda url: _xlsx_sae([], titulo="Otra cosa"))
+    with pytest.raises(ValueError, match="cambió el formato"):
+        territorio.pobreza(cache=False)

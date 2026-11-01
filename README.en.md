@@ -12,7 +12,7 @@
 
 [![Dashboard with UF, dollar, copper, inflation, policy rate, IMACEC, unemployment and bank delinquency, downloaded with datoschile](docs/portada.png)](https://rxyxs.github.io/datoschile/)
 
-**[Open the interactive dashboard →](https://rxyxs.github.io/datoschile/)** (in Spanish). It is rebuilt every week with this same library: charts with time ranges and hover detail, pension funds A to E in UF, upcoming holidays, a "what is it worth today?" calculator and a map and table of the 2024 Census by commune.
+**[Open the interactive dashboard →](https://rxyxs.github.io/datoschile/)** (in Spanish). It is rebuilt every week with this same library: charts with time ranges and hover detail, pension funds A to E in UF, upcoming holidays, a "what is it worth today?" calculator and a map and table of the 2024 Census and poverty by commune.
 
 ```python
 import datoschile as dc
@@ -107,11 +107,14 @@ Requires Python 3.10+. Depends only on pandas, requests and openpyxl.
 | `buscar_cut(nombres, region)` | The CUT code of each name, tolerating accents, case, hyphens and old spellings ("NUNOA", "Llay-Llay", "Aisén", "Marchigüe"). The CUT code is the key to join data by commune; the name is not. |
 | `poblacion(nivel)` | By commune, province or region: population, sex, mean age and schooling, % aged 0–13, % aged 60+, % immigrants, % indigenous peoples, households, persons per household, dwellings and % overcrowded dwellings. |
 | `geometria(nivel)`, `limites()` | The official 2024 Census commune boundaries, simplified (0.9 MB, offline): a `GeoDataFrame` by commune, province or region (needs `pip install datoschile[mapas]`) or dependency-free GeoJSON. For a map: `geometria().merge(poblacion(), on="cut")`. |
+| `pobreza()` | 2024 income and multidimensional poverty by commune, with confidence interval: the official small-area estimates (SAE) of the Ministry of Social Development. |
 | `censo(nivel)` | The ~190 aggregate variables INE publishes (employment, industry, commuting, housing materials, water, electricity...). |
 
 INE's file comes by census zone and locality; the library sums it by commune and checks that the total is exactly the published census count (18,480,432). Two source details: averages use a decimal comma (`32,8`), and some counts for very small zones are suppressed with `*`. Those are summed as zero and the `celdas_reservadas` column says how many each row has, so those totals are a lower bound. Mean age and schooling are recomputed weighted by population; averaging the zones' averages would be wrong.
 
 Boundaries come from the commune layer of INE's cartography (765 MB across 16 regional GeoPackages; [`ejemplos/geometria_comunas.py`](ejemplos/geometria_comunas.py) reduces them). They are simplified as a coverage, so neighbouring communes still share borders with no gaps, and islets under ~2 km² are dropped: the southern fjords weighed more than the rest of the country together. The Metropolitan Region comes out at 15,393 km² (official: 15,403). The Antártica commune has no polygon because INE leaves it out of its cartography.
+
+The Casen survey cannot measure each commune, so the ministry blends the direct estimate with a model (Fay-Herriot); in 46 communes outside the sample the figure is model-only (`estimacion == "Sintética"`). The median interval is 9 points wide and exceeds 10 in 100 communes: Colchane runs from 39.7% to 62.3%. Weighted by population, the commune rates give 17.3%, Casen 2024's official national figure. Two cautions: income poverty uses the 2024 methodology (new line), not comparable with 2022 or earlier; and the population in the file is a projection built on the 2017 Census, adding up to 20.1 million against the 18.5 million the 2024 Census counted (14% too many in the Metropolitan Region). Multiplying the rates by those projections gives 3.48 million people in income poverty; by the census count, 3.23 million.
 
 **`convertir`**: to compare amounts over time. They take a number and a date, or whole columns.
 
