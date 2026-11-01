@@ -131,14 +131,21 @@ def construir(series: dict[str, pd.Series]) -> dict:
 
 
 def _comunas() -> list:
-    """Tabla compacta del Censo 2024 por comuna para la sección territorial del panel."""
+    """Tabla compacta del Censo 2024 por comuna, con la pobreza comunal 2024, para la sección territorial."""
     try:
         p = dc.territorio.poblacion()
+        try:
+            pob = dc.territorio.pobreza()[["cut", "pct_pobreza_ingresos", "pct_pobreza_multidimensional"]]
+        except (ConnectionError, ValueError) as e:
+            print(f"[aviso] pobreza: {e}")
+            pob = pd.DataFrame(columns=["cut", "pct_pobreza_ingresos", "pct_pobreza_multidimensional"])
+        p = p.merge(pob, on="cut", how="left")
     except (ConnectionError, ValueError) as e:
         print(f"[aviso] censo: {e}")
         return []
     cols = ["cut", "comuna", "cod_region", "region", "poblacion", "edad_promedio", "escolaridad_promedio_18",
-            "pct_60_mas", "pct_inmigrantes", "pct_pueblos_originarios", "personas_por_hogar", "pct_viviendas_hacinadas"]
+            "pct_60_mas", "pct_inmigrantes", "pct_pueblos_originarios", "personas_por_hogar", "pct_viviendas_hacinadas",
+            "pct_pobreza_ingresos", "pct_pobreza_multidimensional"]
     return [[None if pd.isna(v) else (v.item() if hasattr(v, "item") else v) for v in fila]
             for fila in p[cols].itertuples(index=False)]
 

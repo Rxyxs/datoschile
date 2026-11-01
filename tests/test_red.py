@@ -92,3 +92,12 @@ def test_censo_2024_real():
     assert c.loc[c["cut"] == 13201, "poblacion"].item() == 568_086   # Puente Alto, la más poblada
     r = dc.territorio.poblacion("region").set_index("cod_region")
     assert r.loc[13, "poblacion"] == 7_400_741
+
+
+def test_pobreza_comunal_2024_real():
+    import numpy as np
+    p = dc.territorio.pobreza()
+    assert len(p) == 345 and p["cut"].is_unique
+    # promedio ponderado por población = tasa nacional oficial de Casen 2024 (17,3%)
+    assert np.average(p["pct_pobreza_ingresos"], weights=p["poblacion_proyectada"]) == pytest.approx(17.3, abs=0.1)
+    assert (p["pct_pobreza_ingresos_min"] <= p["pct_pobreza_ingresos"]).all()
